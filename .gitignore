@@ -1,0 +1,58 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+env/
+venv/
+ENV/
+dist/
+build/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.pth
+
+# PyInstaller
+#  Usually these files are written by a python script from scratch
+#  so putting them in source control is probably not a good idea
+#  https://github.com/pyinstaller/pyinstaller/wiki/Recipe-OSX
+*.manifest
+*.spec
+
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+*.sqlite3
+*.bak
+*.swp
+*.asv
+*.swo
+
+# OS generated files #
+######################
+.DS_Store
+.Thumbs.db
+
+cad_outputs/
