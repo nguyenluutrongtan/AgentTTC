@@ -7,10 +7,12 @@ import os
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain_deepseek import ChatDeepSeek
-from langchain_core.runnables import RunnablePassthrough, RunnableLambda
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda, RunnableParallel
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_core.output_parsers import StrOutputParser, PydanticOutputParser
 from langchain_core.pydantic_v1 import BaseModel, Field
+from langchain_core.documents import Document # Added import
+from langchain_community.tools.tavily_search import TavilySearchResults
 from typing import List, Optional, Dict
 import sys
 import json
@@ -26,12 +28,17 @@ if sys.stderr.encoding != 'utf-8':
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY")
 deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
+tavily_api_key = os.getenv("TAVILY_API_KEY") # Added for RAG
 
 if not openai_api_key:
     print("Error: Please set the OPENAI_API_KEY environment variable.")
     print("You can create a .env file in the same directory as this script and add the line:")
     print("OPENAI_API_KEY='your_actual_api_key'")
     exit()
+if not tavily_api_key:
+    print("Warning: TAVILY_API_KEY environment variable not set. RAG features will be disabled.")
+    # Optionally exit() if Tavily is strictly required
+    # exit()
 
 # Define model choices
 MODELS = {
@@ -42,9 +49,13 @@ MODELS = {
 
 # Initialize models
 try:
-    default_llm = ChatOpenAI(model=MODELS["default"], temperature=0)
-    advanced_llm = ChatDeepSeek(model=MODELS["advanced"], temperature=0.1)
-    expert_llm = ChatDeepSeek(model=MODELS["expert"], temperature=0.2)
+    default_llm = ChatDeepSeek(model=MODELS["advanced"], temperature=0)
+    advanced_llm = ChatDeepSeek(model=MODELS["advanced"], temperature=0)
+    expert_llm = ChatDeepSeek(model=MODELS["advanced"], temperature=0)
+
+    # default_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="high")
+    # advanced_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="high")
+    # expert_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="high")
     # Test connection
     default_llm.invoke("Test connection")
 except Exception as e:
@@ -118,9 +129,16 @@ For highly complex designs (level 4-5), break down the design into multiple deta
 code_generation_template = """You are an expert FreeCAD scripter specializing in generating Python code to create highly detailed and complex 3D models based on design requirements.
 
 **Analyzed design requirements:**
+```json
 {design_requirements}
+```
 
-**Task:** Generate a complete and executable Python script for FreeCAD that accurately models the object described in the analyzed design requirements with high precision and detailed features.
+**Retrieved Context (from web search, may be relevant):**
+```
+{retrieved_context}
+```
+
+**Task:** Generate a complete and executable Python script for FreeCAD that accurately models the object described in the analyzed design requirements, potentially using insights from the retrieved context for complex features or techniques. Prioritize the design requirements, but use the context for clarification or advanced methods if applicable.
 
 **Mandatory requirements for the generated Python code:**
 
@@ -211,26 +229,13 @@ Return the evaluation results in JSON format:
 IMPORTANT: Return only JSON, no explanations.
 """
 
-documentation_template = """Create documentation for the following FreeCAD code:
-
-```python
-{final_code}
-```
-
-The documentation should include:
-1. Summary of the 3D model created
-2. Explanation of each main part of the code
-3. Important parameters that can be adjusted
-4. Instructions on how to run the code in FreeCAD
-
-Format the documentation in Markdown with clear section headings.
-"""
+# documentation_template removed
 
 # Initialize templates
 requirement_analysis_prompt = ChatPromptTemplate.from_template(requirement_analysis_template)
 code_generation_prompt = ChatPromptTemplate.from_template(code_generation_template)
 code_validation_prompt = ChatPromptTemplate.from_template(code_validation_template)
-documentation_prompt = ChatPromptTemplate.from_template(documentation_template)
+# documentation_prompt removed
 
 # Define helper functions
 def json_to_pydantic(json_str: str) -> DesignRequirements:
@@ -274,6 +279,41 @@ def process_validation_result(validation_result: str) -> dict:
             "corrected_code": None
         }
 
+def create_rag_query(design_reqs: DesignRequirements) -> str:
+    """Creates a focused RAG query based on analyzed design requirements."""
+    shape_types = []
+    if design_reqs.shapes:
+        shape_types = list(set([s.shape_type for s in design_reqs.shapes])) # Get unique shape types
+        
+    operation_types = []
+    if design_reqs.operations:
+        operation_types = list(set([o.operation_type for o in design_reqs.operations])) # Get unique operation types
+
+    query_parts = ["FreeCAD Python script"]
+    if shape_types:
+        query_parts.append(f"for creating {' and '.join(shape_types)}")
+    if operation_types:
+        query_parts.append(f"using operations like {' and '.join(operation_types)}")
+    
+    query = " ".join(query_parts)
+    
+    # Fallback if no shapes/operations identified
+    if not shape_types and not operation_types:
+        # Use title as a fallback, or a generic term if no title
+        fallback_term = design_reqs.title if design_reqs.title else 'CAD modeling'
+        return f"FreeCAD Python script for {fallback_term}"
+        
+    return query
+
+# Helper function to process retrieved documents
+def format_retrieved_context(docs: List[Dict]) -> str: # Changed type hint to List[Dict]
+    """Formats the retrieved list of dictionaries into a single string."""
+    if not docs:
+        return "No relevant context found."
+    # Access content using dictionary key, default to empty string if key missing
+    # Assuming the content key is 'content' based on TavilySearchResults typical output
+    return "\n\n".join([f"--- Context Source {i+1} ---\n{doc.get('content', 'Error: Content key not found in retrieved document.')}" for i, doc in enumerate(docs)])
+
 # Define chains
 requirement_analysis_chain = (
     {"user_description": RunnablePassthrough()}
@@ -282,6 +322,13 @@ requirement_analysis_chain = (
     | StrOutputParser()
     | RunnableLambda(json_to_pydantic)
 )
+
+# Initialize Tavily Search Tool (Retriever)
+# Check if API key exists before initializing
+if tavily_api_key:
+    retriever = TavilySearchResults(max_results=10) # Get top 3 results
+else:
+    retriever = None # No retriever if key is missing
 
 def select_model_by_complexity(inputs):
     """Select model based on complexity level"""
@@ -299,10 +346,41 @@ def select_model_by_complexity(inputs):
 
 code_generation_chain = (
     code_generation_prompt
-    | RunnableLambda(lambda x: select_model_by_complexity(x["design_requirements"]))
+    | advanced_llm
+    | StrOutputParser()
+    | advanced_llm
     | StrOutputParser()
     | RunnableLambda(clean_code)
 )
+
+# Enhanced code generation chain with RAG
+# Setup for parallel execution: retrieve context and pass requirements
+rag_setup = RunnableParallel(
+    {
+        # Process the retrieved documents using the helper function
+        "retrieved_context": (
+            # Use the new function to generate the query from design_requirements
+            (lambda x: create_rag_query(x["design_requirements"]))
+            | retriever
+            | RunnableLambda(format_retrieved_context) # Apply formatting function
+        ) if retriever else (lambda x: "Tavily API key not set. Context retrieval disabled."),
+
+        "design_requirements": (lambda x: x["design_requirements"]),
+        # Keep user_text in the parallel step output if needed elsewhere, 
+        # but it's no longer directly used for the retriever query.
+        "user_text": (lambda x: x["user_text"]) 
+    }
+)
+
+# Define the RAG chain
+rag_code_generation_chain = (
+    rag_setup
+    | code_generation_prompt
+    | advanced_llm
+    | StrOutputParser()
+    | RunnableLambda(clean_code)
+)
+
 
 code_validation_chain = (
     {"generated_code": RunnablePassthrough()}
@@ -312,20 +390,16 @@ code_validation_chain = (
     | RunnableLambda(process_validation_result)
 )
 
-documentation_chain = (
-    {"final_code": RunnablePassthrough()}
-    | documentation_prompt
-    | advanced_llm
-    | StrOutputParser()
-)
+# documentation_chain removed
 
 class TextToCADAgent:
     def __init__(self):
         self.requirement_analysis_chain = requirement_analysis_chain
-        self.code_generation_chain = code_generation_chain
+        # Use the RAG chain for code generation
+        self.code_generation_chain = rag_code_generation_chain
         self.code_validation_chain = code_validation_chain
-        self.documentation_chain = documentation_chain
-    
+        # self.documentation_chain removed
+
     def process_request(self, user_text):
         """Process user request and generate FreeCAD code"""
         print(f"\n🔍 Analyzing request: '{user_text}'...")
@@ -356,12 +430,18 @@ class TextToCADAgent:
             else:
                 model_name = MODELS["default"]
                 print(f"\n🔧 Generating FreeCAD code (using default model {model_name})...")
-                
-            generated_code = self.code_generation_chain.invoke({"design_requirements": design_requirements})
+
+            # Invoke the RAG chain, passing both requirements and original user text for context retrieval
+            generated_code = self.code_generation_chain.invoke({
+                "design_requirements": design_requirements,
+                "user_text": user_text # Pass user_text for retrieval query
+            })
+            print(f"✅ Code generation complete (with RAG context)")
+
         except Exception as e:
             print(f"❌ Error generating code: {e}")
             return design_requirements, None, f"# Error: Unable to generate code from requirements. Error details: {e}"
-        
+
         # Step 3: Validate and potentially fix the code
         try:
             print(f"\n🔍 Checking and validating code...")
@@ -391,19 +471,15 @@ class TextToCADAgent:
             print("🔄 Continuing with unvalidated code...")
             final_code = generated_code
         
-        # Step 4: Generate documentation
-        try:
-            print(f"\n📝 Generating documentation...")
-            documentation = self.documentation_chain.invoke(final_code)
-        except Exception as e:
-            print(f"⚠️ Error generating documentation: {e}")
-            documentation = "# Unable to generate documentation"
-        
+        # Step 4: Generate documentation removed as requested.
+
         print("\n✅ Code generation process complete!")
-        return design_requirements, documentation, final_code
+        # Return only design_requirements and final_code
+        return design_requirements, final_code
     
-    def save_outputs(self, code, documentation, design_requirements, base_filename="generated_cad"):
-        """Save all outputs to files"""
+    # Updated save_outputs signature to remove documentation parameter
+    def save_outputs(self, code, design_requirements, base_filename="generated_cad"):
+        """Save the generated code to a file"""
         # Create output directory if it doesn't exist
         output_dir = "cad_outputs"
         os.makedirs(output_dir, exist_ok=True)
@@ -425,24 +501,7 @@ class TextToCADAgent:
         except IOError as e:
             print(f"❌ Error saving code file: {e}")
         
-        # Save documentation
-        try:
-            doc_filename = f"{filename_base}_documentation.md"
-            with open(doc_filename, "w", encoding="utf-8") as file:
-                file.write(documentation)
-            print(f"💾 Documentation saved to file '{doc_filename}'")
-        except IOError as e:
-            print(f"❌ Error saving documentation file: {e}")
-        
-        # Save requirements as JSON
-        if design_requirements:
-            try:
-                req_filename = f"{filename_base}_requirements.json"
-                with open(req_filename, "w", encoding="utf-8") as file:
-                    file.write(design_requirements.json(indent=2))
-                print(f"💾 Design requirements saved to file '{req_filename}'")
-            except IOError as e:
-                print(f"❌ Error saving requirements file: {e}")
+        # Documentation and requirements saving removed as requested.
         
         print("\n--------------------------------------------------")
         print("📋 Usage instructions:")
@@ -479,7 +538,8 @@ if __name__ == "__main__":
                 print("⚠️ Description cannot be empty. Please try again.")
                 continue
                 
-            design_requirements, documentation, code = agent.process_request(user_input)
+            # Updated call to process_request (documentation removed)
+            design_requirements, code = agent.process_request(user_input)
             
             if code:
                 # Generate a filename based on the first few words of input
@@ -487,11 +547,12 @@ if __name__ == "__main__":
                 filename_base = re.sub(r'[^\w\s-]', '', filename_base)
                 filename_base = re.sub(r'[-\s]+', '_', filename_base).strip('_')
                 
-                agent.save_outputs(code, documentation, design_requirements, filename_base)
+                # Updated call to save_outputs (documentation removed)
+                agent.save_outputs(code, design_requirements, filename_base)
     else:
         # Process example requests
         example_requests = [
-            "Generate a precise CAD model of an 8-tooth spur gear with standard pressure angle (20°), module 2 mm, and full involute profile. Include accurate tooth geometry, pitch circle, root diameter, and addendum."
+            "rubik cube 3x3"
         ]
         
         for i, request in enumerate(example_requests, 1):
@@ -499,10 +560,12 @@ if __name__ == "__main__":
             print(f"📋 PROCESSING REQUEST {i}: '{request}'")
             print(f"{'='*80}")
             
-            design_requirements, documentation, code = agent.process_request(request)
+            # Updated call to process_request (documentation removed)
+            design_requirements, code = agent.process_request(request)
             
             if code:
-                agent.save_outputs(code, documentation, design_requirements, f"example_{i}")
+                # Updated call to save_outputs (documentation removed)
+                agent.save_outputs(code, design_requirements, f"example_{i}")
                 
                 print("\n🔍 CODE PREVIEW:")
                 print("-" * 40)

@@ -1,0 +1,329 @@
+Lệnh Python cho vẽ hình 3D trong các Workbench của FreeCAD
+Dưới đây là danh sách chi tiết các lệnh Python từ các workbench chính của FreeCAD hỗ trợ vẽ và thao tác các hình 3D, kèm theo ví dụ:
+
+**1. Part Workbench (Cốt lõi cho mô hình hóa 3D)**
+*Các đối tượng cơ bản:*
+
+*   `Part.makeBox(length, width, height, [point])` - Tạo hình hộp, có thể chỉ định điểm gốc
+    *   Ví dụ: `box = Part.makeBox(10, 20, 5)`
+*   `Part.makeCylinder(radius, height, [point], [direction])` - Tạo hình trụ với bán kính và chiều cao
+    *   Ví dụ: `cylinder = Part.makeCylinder(5, 30)`
+*   `Part.makeSphere(radius, [point])` - Tạo hình cầu với bán kính
+    *   Ví dụ: `sphere = Part.makeSphere(10)`
+*   `Part.makeCone(radius1, radius2, height, [point], [direction])` - Tạo hình nón với 2 bán kính
+    *   Ví dụ: `cone = Part.makeCone(5, 0, 15)` # Nón nhọn
+*   `Part.makeTorus(radius1, radius2, [point], [direction], [angle1], [angle2])` - Tạo hình xuyến
+    *   Ví dụ: `torus = Part.makeTorus(10, 2)`
+*   `Part.makeWedge(xmin, ymin, zmin, z2min, x2min, xmax, ymax, zmax, z2max, x2max)` - Tạo hình nêm
+    *   Ví dụ: `wedge = Part.makeWedge(0,0,0, 5,5, 10,10,10, 15,15)`
+*   `Part.makePrism(face, direction)` - Tạo lăng trụ từ mặt và vector hướng
+    *   Ví dụ: `face = Part.makePlane(10,10); prism = Part.makePrism(face, App.Vector(0,0,5))`
+*   `Part.makeHelix(pitch, height, radius, [angle])` - Tạo hình xoắn ốc
+    *   Ví dụ: `helix = Part.makeHelix(pitch=2, height=10, radius=3)`
+
+*Các thao tác Boolean:*
+
+*   `Part.cut(shape1, shape2)` - Cắt shape2 từ shape1
+    *   Ví dụ: `box1 = Part.makeBox(10,10,10); box2 = Part.makeBox(5,5,5, App.Vector(2,2,2)); cut_obj = Part.cut(box1, box2)`
+*   `Part.fuse(shape1, shape2)` - Kết hợp shape1 và shape2
+    *   Ví dụ: `cyl1 = Part.makeCylinder(5,10); cyl2 = Part.makeCylinder(3,15); fused_obj = Part.fuse(cyl1, cyl2)`
+*   `Part.common(shape1, shape2)` - Tạo phần giao giữa shape1 và shape2
+    *   Ví dụ: `sph1 = Part.makeSphere(10); sph2 = Part.makeSphere(8, App.Vector(5,0,0)); common_obj = Part.common(sph1, sph2)`
+*   `Part.section(shape1, shape2)` - Tạo mặt cắt giữa shape1 và shape2
+    *   Ví dụ: `box = Part.makeBox(20,20,5); plane = Part.makePlane(30,30); section_obj = Part.section(box, plane)`
+
+*Các thao tác tạo hình phức tạp:*
+
+*   `Part.makeLoft(listOfWires, [solid], [ruled])` - Tạo bề mặt loft từ danh sách các dây
+    *   Ví dụ: `w1 = Part.makeWire([App.Vector(0,0,0), App.Vector(10,0,0), App.Vector(10,10,0), App.Vector(0,10,0)], True); w2 = Part.makeWire([App.Vector(2,2,5), App.Vector(8,2,5), App.Vector(8,8,5), App.Vector(2,8,5)], True); loft = Part.makeLoft([w1, w2], True)`
+*   `Part.makeSweep(spine, profile, [transition])` - Tạo đối tượng sweep theo đường dẫn
+    *   Ví dụ: `spine = Part.makeLine((0,0,0), (0,0,20)); profile = Part.makeCircle(5); sweep = Part.makeSweep(spine, profile)`
+*   `Part.makeExtrusion(face, vector)` - Đùn một mặt theo vector
+    *   Ví dụ: `face = Part.makePlane(10,10); extrusion = Part.makeExtrusion(face, App.Vector(0,0,15))`
+*   `Part.makeRevolution(profile, [placement], [angle], [solid])` - Tạo đối tượng quay
+    *   Ví dụ: `profile = Part.makeCircle(10, App.Vector(15,0,0)); revolution = Part.makeRevolution(profile)`
+*   `Part.makeShell(listOfFaces)` - Tạo shell từ danh sách các mặt (thường là để loại bỏ mặt)
+    *   Ví dụ: `box = Part.makeBox(10,10,10); faces_to_remove = [box.Faces[0]]; shell = Part.makeShell(faces_to_remove)`
+*   `Part.makeSolid(shell)` - Tạo khối rắn từ shell
+    *   Ví dụ: `# Assuming 'shell' is a valid Part.Shell object; solid = Part.makeSolid(shell)`
+*   `Part.makeCompound(listOfShapes)` - Tạo compound từ danh sách các shape
+    *   Ví dụ: `box = Part.makeBox(5,5,5); sphere = Part.makeSphere(3); compound = Part.makeCompound([box, sphere])`
+*   `Part.makeFilledFace(listOfWires)` - Tạo mặt từ danh sách các đường viền
+    *   Ví dụ: `wire = Part.makeWire([App.Vector(0,0,0), App.Vector(10,0,0), App.Vector(5,5,0)], True); face = Part.makeFilledFace([wire])`
+*   `Part.makeOffset(shape, offset, [tolerance])` - Tạo đối tượng offset
+    *   Ví dụ: `box = Part.makeBox(10,10,10); offset_box = Part.makeOffset(box, 2)`
+*   `Part.makeThickness(shape, thickness, [tolerance])` - Tạo đối tượng dày
+    *   Ví dụ: `sphere = Part.makeSphere(10); thick_sphere = Part.makeThickness(sphere, -1)` # Âm để tạo độ dày vào trong
+
+*Đường và đường cong:*
+
+*   `Part.makeCircle(radius, [center], [direction], [angle1], [angle2])` - Tạo đường tròn
+    *   Ví dụ: `circle = Part.makeCircle(10)`
+*   `Part.makeEllipse(major_radius, minor_radius, [center], [direction])` - Tạo ellipse
+    *   Ví dụ: `ellipse = Part.makeEllipse(10, 5)`
+*   `Part.makePolygon(listOfPoints)` - Tạo đa giác từ danh sách điểm
+    *   Ví dụ: `poly = Part.makePolygon([App.Vector(0,0,0), App.Vector(10,0,0), App.Vector(5,10,0)])`
+*   `Part.makeSpline(listOfPoints, [periodic])` - Tạo đường spline
+    *   Ví dụ: `spline = Part.makeSpline([App.Vector(0,0,0), App.Vector(5,5,0), App.Vector(10,0,0)])`
+*   `Part.makeBSpline(poles, [knots], [mults], [periodic], [degree], [weights])` - Tạo đường BSpline
+    *   Ví dụ: `poles = [App.Vector(0,0,0), App.Vector(5,5,0), App.Vector(10,0,0)]; bspline = Part.makeBSpline(poles)`
+*   `Part.makeBezierCurve(poles)` - Tạo đường cong Bezier
+    *   Ví dụ: `poles = [App.Vector(0,0,0), App.Vector(5,5,0), App.Vector(10,0,0)]; bezier = Part.makeBezierCurve(poles)`
+
+**2. PartDesign Workbench (Thiết kế mô hình dựa trên đặc tính)**
+*Các đặc tính dựa trên phác thảo:*
+
+*   `PartDesign.makePad(sketch, length, [midplane], [reversed], [mode])` - Tạo đặc tính đùn
+    *   Ví dụ: `# Assuming 'sketch' is a valid Sketcher.SketchObject; pad = PartDesign.makePad(sketch, 10)`
+*   `PartDesign.makePocket(sketch, length, [midplane], [reversed], [mode])` - Tạo đặc tính đùn ngược (hốc)
+    *   Ví dụ: `# Assuming 'sketch' is a valid Sketcher.SketchObject; pocket = PartDesign.makePocket(sketch, 5)`
+*   `PartDesign.makeRevolution(sketch, angle, [midplane], [reversed])` - Tạo đặc tính quay
+    *   Ví dụ: `# Assuming 'sketch' is a valid Sketcher.SketchObject; revolution = PartDesign.makeRevolution(sketch, 360)`
+*   `PartDesign.makeGroove(sketch, angle, [midplane], [reversed])` - Tạo đặc tính quay ngược
+    *   Ví dụ: `# Assuming 'sketch' is a valid Sketcher.SketchObject; groove = PartDesign.makeGroove(sketch, 360)`
+
+*Các đặc tính chuyển tiếp:*
+
+*   `PartDesign.makeFillet(body, edges, radius)` - Tạo bo tròn cạnh
+    *   Ví dụ: `# Assuming 'body' is a PartDesign.Body and 'edges' is a list of edges; fillet = PartDesign.makeFillet(body, edges, 2)`
+*   `PartDesign.makeChamfer(body, edges, distance)` - Tạo vát cạnh
+    *   Ví dụ: `# Assuming 'body' is a PartDesign.Body and 'edges' is a list of edges; chamfer = PartDesign.makeChamfer(body, edges, 1)`
+*   `PartDesign.makeDraft(body, faces, angle)` - Tạo đặc tính nghiêng
+    *   Ví dụ: `# Assuming 'body' is a PartDesign.Body and 'faces' is a list of faces; draft = PartDesign.makeDraft(body, faces, 5)` # Góc nghiêng 5 độ
+*   `PartDesign.makeThickness(body, faces, thickness, [mode])` - Tạo đặc tính độ dày
+    *   Ví dụ: `# Assuming 'body' is a PartDesign.Body and 'faces' is a list of faces; thickness = PartDesign.makeThickness(body, faces, 1)`
+
+*Các đặc tính tạo mẫu:*
+
+*   `PartDesign.makeLinearPattern(feature, direction, length, occurrences)` - Tạo mẫu tuyến tính
+    *   Ví dụ: `# Assuming 'feature' is a PartDesign feature; pattern = PartDesign.makeLinearPattern(feature, App.Vector(1,0,0), 50, 5)` # 5 lần lặp trên 50mm theo trục X
+*   `PartDesign.makePolarPattern(feature, axis, angle, occurrences)` - Tạo mẫu cực
+    *   Ví dụ: `# Assuming 'feature' is a PartDesign feature and 'axis' is a reference axis; pattern = PartDesign.makePolarPattern(feature, axis, 360, 6)` # 6 lần lặp trên 360 độ
+*   `PartDesign.makeMultiTransform(feature)` - Tạo biến đổi nhiều đặc tính (kết hợp nhiều biến đổi)
+    *   Ví dụ: `# Assuming 'feature' is a PartDesign feature; multi = PartDesign.makeMultiTransform(feature)` # Cần định nghĩa thêm các biến đổi con
+*   `PartDesign.makeScaled(feature, factor, [center])` - Tạo đặc tính tỉ lệ
+    *   Ví dụ: `# Assuming 'feature' is a PartDesign feature; scaled = PartDesign.makeScaled(feature, 1.5)` # Tỉ lệ 1.5
+*   `PartDesign.makeMirrored(feature, plane)` - Tạo đặc tính phản chiếu
+    *   Ví dụ: `# Assuming 'feature' is a PartDesign feature and 'plane' is a reference plane; mirrored = PartDesign.makeMirrored(feature, plane)`
+
+*Đặc tính nâng cao:*
+
+*   `PartDesign.makeLoft(profiles, [solid], [ruled])` - Tạo đặc tính loft
+    *   Ví dụ: `# Assuming 'profiles' is a list of Sketcher.SketchObject; loft = PartDesign.makeLoft(profiles, True)`
+*   `PartDesign.makePipe(spine, profile)` - Tạo ống theo đường dẫn
+    *   Ví dụ: `# Assuming 'spine' and 'profile' are Sketcher.SketchObject; pipe = PartDesign.makePipe(spine, profile)`
+*   `PartDesign.makeAdditive(body, tool)` - Tạo đặc tính cộng (tương tự Fuse)
+    *   Ví dụ: `# Assuming 'body' and 'tool' are PartDesign features/bodies; additive = PartDesign.makeAdditive(body, tool)`
+*   `PartDesign.makeSubtractive(body, tool)` - Tạo đặc tính trừ (tương tự Cut)
+    *   Ví dụ: `# Assuming 'body' and 'tool' are PartDesign features/bodies; subtractive = PartDesign.makeSubtractive(body, tool)`
+
+**3. Draft Workbench (Vẽ 2D và 3D cơ bản)**
+*Các đối tượng cơ bản (có thể sử dụng trong không gian 3D):*
+
+*   `Draft.makePoint(X, Y, Z)` - Tạo điểm
+    *   Ví dụ: `pt = Draft.makePoint(10, 5, 2)`
+*   `Draft.makeLine(point1, point2)` - Tạo đường thẳng
+    *   Ví dụ: `p1 = App.Vector(0,0,0); p2 = App.Vector(10,10,10); line = Draft.makeLine(p1, p2)`
+*   `Draft.makeWire([points], [closed])` - Tạo dây từ danh sách điểm
+    *   Ví dụ: `points = [App.Vector(0,0,0), App.Vector(10,0,0), App.Vector(10,10,0)]; wire = Draft.makeWire(points)`
+*   `Draft.makeBSpline([points], [closed])` - Tạo đường B-spline
+    *   Ví dụ: `points = [App.Vector(0,0,0), App.Vector(5,5,0), App.Vector(10,0,0)]; bspline = Draft.makeBSpline(points)`
+*   `Draft.makeBezCurve([points], [closed])` - Tạo đường cong Bezier
+    *   Ví dụ: `points = [App.Vector(0,0,0), App.Vector(5,5,0), App.Vector(10,0,0)]; bezcurve = Draft.makeBezCurve(points)`
+*   `Draft.makeCircle(radius, [placement])` - Tạo hình tròn
+    *   Ví dụ: `circle = Draft.makeCircle(5)`
+*   `Draft.makeEllipse(major_radius, minor_radius)` - Tạo ellipse
+    *   Ví dụ: `ellipse = Draft.makeEllipse(10, 5)`
+*   `Draft.makeRectangle(length, width, [placement])` - Tạo hình chữ nhật
+    *   Ví dụ: `rect = Draft.makeRectangle(20, 10)`
+*   `Draft.makePolygon(numberofedges, radius)` - Tạo đa giác đều
+    *   Ví dụ: `poly = Draft.makePolygon(6, 10)` # Lục giác với bán kính đường tròn ngoại tiếp 10
+*   `Draft.makeText(string, [placement])` - Tạo văn bản
+    *   Ví dụ: `text = Draft.makeText("Hello FreeCAD")`
+*   `Draft.makeShapeString(string, fontfile, size)` - Tạo chuỗi hình dạng (hình học từ text)
+    *   Ví dụ: `# Assuming font file exists; shape_string = Draft.makeShapeString("CAD", "C:/Windows/Fonts/arial.ttf", 10)`
+
+*Các thao tác 3D:*
+
+*   `Draft.extrude(object, direction)` - Đùn đối tượng theo hướng
+    *   Ví dụ: `box = Part.makeBox(5,5,5); extruded_box = Draft.extrude(box, App.Vector(0,0,10))`
+*   `Draft.move(objectslist, vector, [copy])` - Di chuyển đối tượng trong không gian 3D
+    *   Ví dụ: `obj = Part.makeSphere(5); Draft.move(obj, App.Vector(10, 0, 0))`
+*   `Draft.rotate(objectslist, angle, center, axis, [copy])` - Xoay đối tượng
+    *   Ví dụ: `obj = Part.makeBox(10,10,10); Draft.rotate(obj, 45, App.Vector(0,0,0), App.Vector(0,0,1))` # Xoay 45 độ quanh trục Z
+*   `Draft.scale(objectslist, scale, center, [copy])` - Thay đổi tỉ lệ đối tượng
+    *   Ví dụ: `obj = Part.makeCylinder(5,10); Draft.scale(obj, App.Vector(2,2,1))` # Tỉ lệ X, Y gấp 2, Z giữ nguyên
+*   `Draft.offset(object, offset, [copy])` - Tạo offset của đối tượng
+    *   Ví dụ: `line = Draft.makeLine(App.Vector(0,0,0), App.Vector(10,0,0)); offset_line = Draft.offset(line, 2)`
+
+**4. Curve Workbench (Phần mở rộng làm việc với đường cong)** (Lưu ý: Có thể là Addon)
+
+*   `Curve.makeBlendCurve([points], [degree])` - Tạo đường cong blend (nối mượt)
+    *   Ví dụ: `# Assuming points list; blend = Curve.makeBlendCurve(points)`
+*   `Curve.makeCurveParametric(fx, fy, fz, bounds)` - Tạo đường cong tham số
+    *   Ví dụ: `# Define parametric functions fx, fy, fz; curve = Curve.makeCurveParametric(fx, fy, fz, [0, 1])` # Tham số t từ 0 đến 1
+*   `Curve.makeBSplineApproximation(points, [degree])` - Tạo xấp xỉ B-spline từ các điểm
+    *   Ví dụ: `# Assuming points list; approx = Curve.makeBSplineApproximation(points)`
+*   `Curve.makeCurveOnSurface(curve, surface)` - Tạo đường cong trên bề mặt
+    *   Ví dụ: `# Assuming curve and surface objects; curve_on_surf = Curve.makeCurveOnSurface(curve, surface)`
+*   `Curve.makePipeshell(spine, profiles)` - Tạo vỏ ống theo spine và các profile
+    *   Ví dụ: `# Assuming spine wire and profiles list; pipeshell = Curve.makePipeshell(spine, profiles)`
+*   `Curve.makeSweep(path, profile, [solid])` - Tạo sweep theo profile (tương tự Part.makeSweep)
+    *   Ví dụ: `# Assuming path wire and profile face; sweep = Curve.makeSweep(path, profile)`
+
+**5. Surface Workbench (Làm việc với bề mặt)** (Lưu ý: Có thể là Addon)
+
+*   `Surface.createBSplineSurface(poles, [uknots], [vknots], [umults], [vmults], [udegree], [vdegree])` - Tạo bề mặt B-spline
+    *   Ví dụ: `# Assuming poles grid, knots, mults, degrees; bsurf = Surface.createBSplineSurface(poles)`
+*   `Surface.createBezierSurface(poles)` - Tạo bề mặt Bezier
+    *   Ví dụ: `# Assuming poles grid; bezsurf = Surface.createBezierSurface(poles)`
+*   `Surface.createExtrusionSurface(profile, direction)` - Tạo bề mặt đùn
+    *   Ví dụ: `# Assuming profile wire and direction vector; extrusurf = Surface.createExtrusionSurface(profile, direction)`
+*   `Surface.createRevolvedSurface(profile, center, axis, angle)` - Tạo bề mặt quay
+    *   Ví dụ: `# Assuming profile wire, center, axis, angle; revsurf = Surface.createRevolvedSurface(profile, center, axis, 180)` # Quay 180 độ
+*   `Surface.createLoftSurface([profiles])` - Tạo bề mặt loft
+    *   Ví dụ: `# Assuming list of profile wires; loftsurf = Surface.createLoftSurface(profiles)`
+*   `Surface.createSweptSurface(profile, path)` - Tạo bề mặt swept
+    *   Ví dụ: `# Assuming profile wire and path wire; sweptsurf = Surface.createSweptSurface(profile, path)`
+*   `Surface.createBlendSurface(edge1, edge2)` - Tạo bề mặt blend (nối mượt giữa 2 cạnh)
+    *   Ví dụ: `# Assuming edge1 and edge2 Part.Edge objects; blendsurf = Surface.createBlendSurface(edge1, edge2)`
+*   `Surface.createFillingFace([edges])` - Tạo mặt điền từ các cạnh (tạo mặt vá)
+    *   Ví dụ: `# Assuming list of edge objects forming a closed loop; fillsurf = Surface.createFillingFace(edges)`
+*   `Surface.createCurveNetworkSurface([edges])` - Tạo bề mặt từ mạng lưới đường cong
+    *   Ví dụ: `# Assuming list of edge objects forming a network; netsurf = Surface.createCurveNetworkSurface(edges)`
+
+**6. Mesh Workbench (Làm việc với lưới)**
+
+*   `Mesh.createBox(length, width, height)` - Tạo lưới hình hộp
+    *   Ví dụ: `mesh_box = Mesh.createBox(10, 20, 5)`
+*   `Mesh.createSphere(radius, [sampling])` - Tạo lưới hình cầu
+    *   Ví dụ: `mesh_sphere = Mesh.createSphere(10)`
+*   `Mesh.createCylinder(radius, height, [sampling])` - Tạo lưới hình trụ
+    *   Ví dụ: `mesh_cyl = Mesh.createCylinder(5, 30)`
+*   `Mesh.createCone(radius1, radius2, height, [sampling])` - Tạo lưới hình nón
+    *   Ví dụ: `mesh_cone = Mesh.createCone(5, 0, 15)`
+*   `Mesh.createTorus(radius1, radius2, [sampling])` - Tạo lưới hình xuyến
+    *   Ví dụ: `mesh_torus = Mesh.createTorus(10, 2)`
+*   `Mesh.createFromShape(shape, [linear_deflection], [angular_deflection])` - Tạo lưới từ shape (đối tượng Part)
+    *   Ví dụ: `part_box = Part.makeBox(10,10,10); mesh_from_part = Mesh.createFromShape(part_box)`
+*   `Mesh.flipNormals(mesh)` - Đảo ngược vector pháp tuyến của lưới
+    *   Ví dụ: `# Assuming 'mesh' is a Mesh object; Mesh.flipNormals(mesh)`
+*   `Mesh.harmonizeNormals(mesh)` - Điều hòa các vector pháp tuyến (hướng ra ngoài hoặc vào trong)
+    *   Ví dụ: `# Assuming 'mesh' is a Mesh object; Mesh.harmonizeNormals(mesh)`
+*   `Mesh.smooth(mesh, [iterations])` - Làm mượt lưới
+    *   Ví dụ: `# Assuming 'mesh' is a Mesh object; smoothed_mesh = Mesh.smooth(mesh)`
+*   `Mesh.refine(mesh)` - Tinh chỉnh lưới (thêm chi tiết)
+    *   Ví dụ: `# Assuming 'mesh' is a Mesh object; refined_mesh = Mesh.refine(mesh)`
+
+**7. Points Workbench (Làm việc với điểm)** (Lưu ý: Có thể là Addon)
+
+*   `Points.createPoints([points])` - Tạo đám mây điểm
+    *   Ví dụ: `points_list = [(0,0,0), (1,1,1), (2,0,2)]; cloud = Points.createPoints(points_list)`
+*   `Points.convertToBSpline(points)` - Chuyển đổi điểm thành B-spline
+    *   Ví dụ: `# Assuming 'points' is a Points object; bspline = Points.convertToBSpline(points)`
+*   `Points.show(points)` - Hiển thị đám mây điểm
+    *   Ví dụ: `# Assuming 'points' is a Points object; Points.show(points)`
+*   `Points.export(pointcloud, filename)` - Xuất đám mây điểm
+    *   Ví dụ: `# Assuming 'pointcloud' is a Points object; Points.export(pointcloud, "cloud.asc")`
+
+**8. Robot Workbench (Mô phỏng robot)**
+
+*   `Robot.createRobot(name)` - Tạo robot mới
+    *   Ví dụ: `robot = Robot.createRobot("MyRobot")`
+*   `Robot.createTrajectory(name)` - Tạo quỹ đạo
+    *   Ví dụ: `traj = Robot.createTrajectory("Path1")`
+*   `Robot.createEdge(p1, p2)` - Tạo cạnh cho quỹ đạo (thường dùng nội bộ)
+    *   Ví dụ: `# Assuming p1, p2 are points/vectors; edge = Robot.createEdge(p1, p2)`
+*   `Robot.createRobotTrajectory(robot, trajectory)` - Tạo quỹ đạo cho robot
+    *   Ví dụ: `# Assuming 'robot' and 'trajectory' objects; Robot.createRobotTrajectory(robot, trajectory)`
+
+**9. Assembly Workbench (Lắp ráp các thành phần)** (Lưu ý: Cú pháp phụ thuộc vào Assembly WB cụ thể, ví dụ A2plus, Assembly3, Assembly4)
+
+*   `Assembly.createAssembly()` - Tạo assembly mới (chung)
+*   `Assembly.addPart(assembly, part, [transform])` - Thêm phần vào assembly (chung)
+*   `Assembly.addConstraint(assembly, constraint)` - Thêm ràng buộc vào assembly (chung)
+    *   Ví dụ (A2plus):
+        ```python
+        # import a2plus.importpart as importer
+        # assembly_doc = App.newDocument("Assembly")
+        # part1_proxy = importer.importPartFromFile(assembly_doc, "part1.fcstd")
+        # part2_proxy = importer.importPartFromFile(assembly_doc, "part2.fcstd")
+        # # Add constraints using A2plus GUI or specific constraint functions
+        ```
+
+**10. Arch Workbench (Mô hình kiến trúc 3D)**
+
+*   `Arch.makeWall(baseobj, [length], [width], [height])` - Tạo tường
+    *   Ví dụ: `line = Draft.makeLine(App.Vector(0,0,0), App.Vector(5000,0,0)); wall = Arch.makeWall(line, height=3000, width=200)`
+*   `Arch.makeStructure(baseobj, [length], [width], [height])` - Tạo kết cấu (dầm, cột)
+    *   Ví dụ: `rect = Draft.makeRectangle(100, 100); struct = Arch.makeStructure(rect, height=3000)` # Cột
+*   `Arch.makeRoof(baseobj, [slopes])` - Tạo mái nhà
+    *   Ví dụ: `outline = Draft.makeRectangle(10000, 5000); roof = Arch.makeRoof(outline)`
+*   `Arch.makeFloor([objects])` - Tạo sàn
+    *   Ví dụ: `# Assuming 'walls' is a list of Arch Wall objects; floor = Arch.makeFloor(walls)`
+*   `Arch.makeBuilding([objects])` - Tạo tòa nhà (nhóm các tầng)
+    *   Ví dụ: `# Assuming 'floors' is a list of Arch Floor objects; building = Arch.makeBuilding(floors)`
+*   `Arch.makeSite([objects])` - Tạo điểm xây dựng (nhóm các tòa nhà)
+    *   Ví dụ: `# Assuming 'buildings' is a list of Arch Building objects; site = Arch.makeSite(buildings)`
+*   `Arch.makeWindow(baseobj, [width], [height])` - Tạo cửa sổ (thường đặt trên tường)
+    *   Ví dụ: `# Assuming 'wall_face' is a face on an Arch Wall; window = Arch.makeWindow(wall_face, width=1200, height=1000)`
+*   `Arch.makeDoor(baseobj, [width], [height])` - Tạo cửa ra vào
+    *   Ví dụ: `# Assuming 'wall_face' is a face on an Arch Wall; door = Arch.makeDoor(wall_face, width=900, height=2100)`
+*   `Arch.makePipe(baseobj, [diameter])` - Tạo ống
+    *   Ví dụ: `wire = Draft.makeWire([App.Vector(0,0,0), App.Vector(0,5000,0)]); pipe = Arch.makePipe(wire, diameter=100)`
+*   `Arch.makeStairs(baseobj, [length], [width], [height])` - Tạo cầu thang
+    *   Ví dụ: `baseline = Draft.makeLine(App.Vector(0,0,0), App.Vector(3000,0,0)); stairs = Arch.makeStairs(baseline, width=1000, height=2800)`
+*   `Arch.makeRebar(baseobj, [diameter], [spacing])` - Tạo cốt thép (trong kết cấu)
+    *   Ví dụ: `# Assuming 'structure' is an Arch Structure object; rebar = Arch.makeRebar(structure, diameter=12, spacing=150)`
+
+**11. Path Workbench (Tạo đường dẫn cho CNC)** (Lưu ý: Yêu cầu thiết lập CAM)
+
+*   `Path.makePath(edges)` - Tạo đường dẫn từ các cạnh (ít dùng trực tiếp)
+    *   Ví dụ: `# Usually created as part of a Path Job`
+*   `Path.makeProfile(shape, [offset])` - Tạo lệnh profile cho hình dạng
+    *   Ví dụ: `# Assuming 'face' is a Part.Face; profile_op = Path.Profile(face)`
+*   `Path.makePocket(shape, [offset], [depth])` - Tạo lệnh pocket cho hình dạng
+    *   Ví dụ: `# Assuming 'face' is a Part.Face; pocket_op = Path.Pocket(face)`
+*   `Path.makeDrilling(shape)` - Tạo lệnh khoan (thường cho các điểm hoặc hình tròn)
+    *   Ví dụ: `# Assuming 'circles' is a list of Part.Circles; drill_op = Path.Drilling(circles)`
+
+**12. OpenSCAD Workbench (Tương tác với OpenSCAD)**
+
+*   `OpenSCAD.makePolyhedron(vertices, faces)` - Tạo đa diện từ đỉnh và mặt
+    *   Ví dụ: `vertices = [[0,0,0], [1,0,0], [0,1,0], [0,0,1]]; faces = [[0,1,2], [0,3,1], [0,2,3], [1,3,2]]; poly = OpenSCAD.makePolyhedron(vertices, faces)` # Tetrahedron
+*   `OpenSCAD.makeImplicitFunction(function)` - Tạo hàm ẩn (có thể yêu cầu OpenSCAD bên ngoài)
+    *   Ví dụ: `# function_str = "x*x + y*y - z*z"; implicit = OpenSCAD.makeImplicitFunction(function_str)`
+*   `OpenSCAD.resize(object, [newsize], [oldsize])` - Thay đổi kích thước đối tượng
+    *   Ví dụ: `obj = Part.makeBox(10,10,10); resized = OpenSCAD.resize(obj, newsize=[20,20,10])`
+
+**Các hàm tiện ích 3D chung**
+*Biến đổi không gian:*
+
+*   `FreeCAD.Placement(Base, Rotation, [Center])` - Tạo đối tượng vị trí (vị trí và hướng)
+    *   Ví dụ: `placement = App.Placement(App.Vector(10, 20, 5), App.Rotation(App.Vector(0,0,1), 45))` # Di chuyển đến (10,20,5), xoay 45 độ quanh trục Z
+*   `FreeCAD.Vector(x, y, z)` - Tạo vector
+    *   Ví dụ: `vec = App.Vector(1, 2, 3)`
+*   `FreeCAD.Rotation(axis, angle)` - Tạo phép quay
+    *   Ví dụ: `rot = App.Rotation(App.Vector(1,0,0), 90)` # Xoay 90 độ quanh trục X
+
+*Thao tác với đối tượng:*
+
+*   `obj.Placement = FreeCAD.Placement(...)` - Đặt vị trí cho đối tượng
+    *   Ví dụ: `box = App.ActiveDocument.addObject("Part::Box", "MyBox"); box.Placement = App.Placement(App.Vector(5,0,0), App.Rotation(0,0,0))`
+*   `obj.ViewObject.Transparency = value` - Đặt độ trong suốt (0-100)
+    *   Ví dụ: `box.ViewObject.Transparency = 50`
+*   `obj.ViewObject.ShapeColor = (r, g, b)` - Đặt màu sắc (giá trị từ 0.0 đến 1.0)
+    *   Ví dụ: `box.ViewObject.ShapeColor = (1.0, 0.0, 0.0)` # Màu đỏ
+*   `obj.ViewObject.Visibility = True/False` - Đặt khả năng hiển thị
+    *   Ví dụ: `box.ViewObject.Visibility = False`
+*   `App.getDocument('name').getObject('name')` - Truy cập đối tượng theo tên tài liệu và tên đối tượng
+    *   Ví dụ: `doc = App.getDocument("MyModelDoc"); obj = doc.getObject("MyObjectName")`
+
+*Xuất nhập dữ liệu 3D:*
+
+*   `Import.open(filename)` - Mở file 3D (STEP, IGES, BREP, STL,...)
+    *   Ví dụ: `Import.open("my_model.step")`
+*   `Export.export([objects], filename)` - Xuất đối tượng 3D (STEP, IGES, BREP,...)
+    *   Ví dụ: `objs_to_export = [App.ActiveDocument.getObject("MyBox")] ; Export.export(objs_to_export, "output.iges")`
+*   `Mesh.export([meshes], filename)` - Xuất mesh (STL, OBJ,...)
+    *   Ví dụ: `meshes_to_export = [App.ActiveDocument.getObject("MyMesh")]; Mesh.export(meshes_to_export, "output.stl")`
