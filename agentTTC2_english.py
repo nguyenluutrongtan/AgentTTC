@@ -16,6 +16,7 @@ from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_community.vectorstores import FAISS # Added for local RAG
 from langchain_openai import OpenAIEmbeddings # Added for local RAG (can be swapped if needed)
 # from langchain_deepseek import DeepseekEmbeddings # Alternative if available
+from langchain.text_splitter import RecursiveCharacterTextSplitter # Added for index building
 from typing import List, Optional, Dict, Any # Added Any
 import sys
 import json
@@ -46,9 +47,9 @@ if not tavily_api_key:
 
 # Define model choices
 MODELS = {
-    "default": "gpt-4.1-mini-2025-04-14",
-    "advanced": "gpt-4.1-nano-2025-04-14",  # Using GPT-4o for more complex designs and higher accuracy
-    "expert": "gpt-4.1-nano-2025-04-14",  # For extremely detailed and complex designs
+    "default": "o3-mini-2025-01-31",
+    "advanced": "o3-mini-2025-01-31",  # Using GPT-4o for more complex designs and higher accuracy
+    "expert": "o3-mini-2025-01-31",  # For extremely detailed and complex designs
 }
 
 # Initialize models
@@ -57,13 +58,13 @@ try:
     # advanced_llm = ChatDeepSeek(model=MODELS["advanced"], temperature=0)
     # expert_llm = ChatDeepSeek(model=MODELS["advanced"], temperature=0)
 
-    # default_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="high")
-    # advanced_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="high")
-    # expert_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="high")
+    default_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="high")
+    advanced_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="high")
+    expert_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="high")
 
-    default_llm = ChatOpenAI(model=MODELS["advanced"], temperature=0)
-    advanced_llm = ChatOpenAI(model=MODELS["advanced"], temperature=0)
-    expert_llm = ChatOpenAI(model=MODELS["advanced"], temperature=0)
+    # default_llm = ChatOpenAI(model=MODELS["advanced"], temperature=0)
+    # advanced_llm = ChatOpenAI(model=MODELS["advanced"], temperature=0)
+    # expert_llm = ChatOpenAI(model=MODELS["advanced"], temperature=0)
     # Test connection
     default_llm.invoke("Test connection")
 except Exception as e:
@@ -74,42 +75,82 @@ except Exception as e:
 # --- Local RAG Setup ---
 LOCAL_GUIDE_PATH = "guide.txt"
 FAISS_INDEX_PATH = "faiss_guide_index"
+local_retriever = None # Initialize as None
 
+print("\n--- Setting up Local RAG ---")
 try:
-    # Use OpenAI embeddings for now, ensure OPENAI_API_KEY is set for this
-    # If you have DeepSeek embeddings and API key, you can swap this
+    # Check for FAISS library first
+    try:
+        import faiss
+    except ImportError:
+        print("⚠️ Required library 'faiss-cpu' or 'faiss-gpu' not found.")
+        print("   Please install it: pip install faiss-cpu")
+        raise # Re-raise to skip the rest of the local RAG setup
+
+    # Proceed if FAISS is installed
     if not openai_api_key:
         raise ValueError("OPENAI_API_KEY is required for embeddings used by local RAG.")
+    print("🔑 OpenAI API key found for embeddings.")
     embeddings = OpenAIEmbeddings(api_key=openai_api_key)
 
     faiss_path = Path(FAISS_INDEX_PATH)
+    guide_path = Path(LOCAL_GUIDE_PATH)
+
     if faiss_path.exists() and any(faiss_path.iterdir()):
         print(f"💾 Loading existing FAISS index from: {FAISS_INDEX_PATH}")
-        local_vector_store = FAISS.load_local(FAISS_INDEX_PATH, embeddings, allow_dangerous_deserialization=True) # Added allow_dangerous_deserialization
+        local_vector_store = FAISS.load_local(FAISS_INDEX_PATH, embeddings, allow_dangerous_deserialization=True)
         local_retriever = local_vector_store.as_retriever(search_kwargs={"k": 5}) # Retrieve top 5 local results
         print("✅ Local FAISS index loaded successfully.")
+    elif guide_path.exists():
+        print(f"⚠️ FAISS index not found at '{FAISS_INDEX_PATH}'.")
+        print(f"🔧 Attempting to build FAISS index from '{LOCAL_GUIDE_PATH}'...")
+        try:
+            guide_content = guide_path.read_text(encoding='utf-8')
+            # Split the document into chunks
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=1000, # Adjust chunk size as needed
+                chunk_overlap=100, # Adjust overlap as needed
+                length_function=len,
+            )
+            texts = text_splitter.split_text(guide_content)
+            print(f"   - Split guide into {len(texts)} chunks.")
+
+            # Create FAISS index from text chunks
+            print("   - Creating embeddings and building FAISS index (this may take a moment)...")
+            local_vector_store = FAISS.from_texts(texts, embeddings)
+            print("   - Saving FAISS index...")
+            local_vector_store.save_local(FAISS_INDEX_PATH)
+            local_retriever = local_vector_store.as_retriever(search_kwargs={"k": 5})
+            print(f"✅ FAISS index built and saved successfully to '{FAISS_INDEX_PATH}'.")
+        except Exception as build_e:
+            print(f"❌ Error building FAISS index: {build_e}")
+            print("   Local RAG will be disabled.")
+            local_retriever = None
     else:
-        # This part is optional - ideally the index is pre-built.
-        # If you want the script to build it if missing, uncomment and add text splitting logic.
-        print(f"⚠️ FAISS index not found at {FAISS_INDEX_PATH}. Local RAG from guide.txt will be disabled.")
-        # print(f"Attempting to build FAISS index from {LOCAL_GUIDE_PATH}...")
-        # guide_content = Path(LOCAL_GUIDE_PATH).read_text(encoding='utf-8')
-        # # Add text splitting logic here (e.g., RecursiveCharacterTextSplitter)
-        # # text_splitter = RecursiveCharacterTextSplitter(...)
-        # # texts = text_splitter.split_text(guide_content)
-        # # local_vector_store = FAISS.from_texts(texts, embeddings)
-        # # local_vector_store.save_local(FAISS_INDEX_PATH)
-        # # local_retriever = local_vector_store.as_retriever(search_kwargs={"k": 5})
-        # # print("✅ FAISS index built and saved.")
-        local_retriever = None # Disable if index doesn't exist
+        print(f"⚠️ FAISS index not found at '{FAISS_INDEX_PATH}' and guide file '{LOCAL_GUIDE_PATH}' not found.")
+        print("   Local RAG cannot be initialized.")
+        local_retriever = None
 
 except ImportError:
-    print("⚠️ Required libraries for FAISS (faiss-cpu or faiss-gpu) not found. Install with 'pip install faiss-cpu'. Local RAG disabled.")
-    local_retriever = None
+    # This catch is specifically for the faiss import check at the beginning
+    print("   Local RAG setup skipped due to missing FAISS library.")
+    local_retriever = None # Ensure it's None if any setup error occurs
 except Exception as e:
-    print(f"❌ Error setting up local RAG from {LOCAL_GUIDE_PATH}: {e}")
+    print(f"❌ An unexpected error occurred during local RAG setup: {e}")
     local_retriever = None
-# --- End Local RAG Setup ---
+print("--- Local RAG Setup Complete ---")
+
+
+# --- Web RAG Setup ---
+print("\n--- Setting up Web RAG (Tavily) ---")
+if tavily_api_key:
+    print("🔑 Tavily API key found.")
+    retriever = TavilySearchResults(max_results=5) # Reduced results to 5
+    print("✅ Tavily Web Search enabled.")
+else:
+    print("⚠️ TAVILY_API_KEY not set. Web Search via Tavily is disabled.")
+    retriever = None # No retriever if key is missing
+print("--- Web RAG Setup Complete ---")
 
 
 # Pydantic models for structured output
@@ -187,7 +228,25 @@ code_generation_template = """You are an expert FreeCAD scripter specializing in
 {retrieved_context}
 ```
 
-**Task:** Generate a complete and executable Python script for FreeCAD that accurately models the object described in the analyzed design requirements, potentially using insights from the retrieved context for complex features or techniques. Prioritize the design requirements, but use the context for clarification or advanced methods if applicable.
+**FreeCAD Workbench Guide Summary (Based on provided guide.txt):**
+
+*   **Part Workbench:** Core for 3D modeling. Use for basic shapes (box, cylinder, sphere, cone, torus, wedge, prism, helix), boolean operations (cut, fuse, common, section), complex shapes (loft, sweep, extrusion, revolution, shell, solid, compound, filled face, offset, thickness), and basic curves/lines (circle, ellipse, polygon, spline, bspline, bezier). Commands typically start with `Part.`.
+*   **PartDesign Workbench:** Feature-based modeling. Use for sketch-based features (pad, pocket, revolution, groove), dress-up features (fillet, chamfer, draft, thickness), patterns (linear, polar, multi-transform, scaled, mirrored), and advanced features (loft, pipe, additive/subtractive operations). Commands typically start with `PartDesign.`. Requires a `PartDesign.Body`.
+*   **Draft Workbench:** Basic 2D/3D drawing and modification. Use for points, lines, wires, bsplines, bezier curves, circles, ellipses, rectangles, polygons, text, shape strings. Also includes 3D operations like extrude, move, rotate, scale, offset. Commands typically start with `Draft.`.
+*   **Curve Workbench (Addon?):** Advanced curve manipulation. Use for blend curves, parametric curves, bspline approximations, curves on surfaces, pipeshells, sweeps. Commands may start with `Curve.`.
+*   **Surface Workbench (Addon?):** Advanced surface modeling. Use for bspline/bezier surfaces, extrusion/revolved/loft/swept surfaces, blend surfaces, filling faces, curve network surfaces. Commands may start with `Surface.`.
+*   **Mesh Workbench:** Working with mesh data (often from imports like STL). Use for creating mesh primitives, converting shapes to meshes, mesh repair (flip/harmonize normals), smoothing, refining. Commands typically start with `Mesh.`.
+*   **Points Workbench (Addon?):** Working with point clouds. Use for creating/importing/exporting point clouds, converting to splines. Commands may start with `Points.`.
+*   **Robot Workbench:** Robot simulation. Use for creating robots, trajectories. Commands typically start with `Robot.`.
+*   **Assembly Workbench (A2plus, Assembly3/4):** Assembling parts. Syntax varies depending on the specific workbench used. General concepts involve creating assemblies, adding parts, and defining constraints.
+*   **Arch Workbench:** Architectural modeling. Use for walls, structures (beams/columns), roofs, floors, buildings, sites, windows, doors, pipes, stairs, rebar. Commands typically start with `Arch.`. Often builds upon Draft objects.
+*   **Path Workbench:** CNC path generation (CAM). Use for creating toolpaths like profiles, pockets, drilling operations based on geometry. Commands typically start with `Path.`.
+*   **OpenSCAD Workbench:** Interaction with OpenSCAD. Use for creating polyhedrons, implicit functions, resizing. Commands typically start with `OpenSCAD.`.
+*   **General Utilities:** Use `App.Vector`, `App.Placement`, `App.Rotation` for positioning. Use `obj.Placement`, `obj.ViewObject` for manipulating existing objects. Use `Import` and `Export` modules for file I/O.
+
+**When generating code, select the most appropriate workbench and commands based on the design requirements and this guide.** For example, use PartDesign for feature-based modeling starting from sketches, Part for direct solid modeling and boolean operations, Draft for 2D elements or simple 3D arrangements, Arch for building elements, etc. Remember to import the necessary modules (e.g., `import PartDesign`, `import Draft`).
+
+**Task:** Generate a complete and executable Python script for FreeCAD that accurately models the object described in the analyzed design requirements, potentially using insights from the retrieved context and the workbench guide above for complex features or techniques. Prioritize the design requirements, but use the context and guide for clarification or advanced methods if applicable.
 
 **Mandatory requirements for the generated Python code:**
 
@@ -643,7 +702,29 @@ if __name__ == "__main__":
     else:
         # Process example requests
         example_requests = [
-            "rubik cube 3x3"
+            """ Create a 3D model of a spur gear with the following specifications:
+
+Number of teeth: 21
+
+Module: 2 mm
+
+Pressure angle: 20 degrees
+
+Gear type: Spur (straight teeth)
+
+Addendum: 2 mm
+
+Dedendum: 2.5 mm
+
+Pitch diameter: 42 mm
+
+Outside diameter: 46 mm
+
+Root diameter: 37 mm
+
+Face width: 10 mm
+
+Bore diameter (center hole): 10 mm """
         ]
         
         for i, request in enumerate(example_requests, 1):
