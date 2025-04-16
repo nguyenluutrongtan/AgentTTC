@@ -13,9 +13,13 @@ from langchain_core.output_parsers import StrOutputParser, PydanticOutputParser
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.documents import Document # Added import
 from langchain_community.tools.tavily_search import TavilySearchResults
-from typing import List, Optional, Dict
+from langchain_community.vectorstores import FAISS # Added for local RAG
+from langchain_openai import OpenAIEmbeddings # Added for local RAG (can be swapped if needed)
+# from langchain_deepseek import DeepseekEmbeddings # Alternative if available
+from typing import List, Optional, Dict, Any # Added Any
 import sys
 import json
+from pathlib import Path # Added for path handling
 import re
 
 # Configure UTF-8 encoding
@@ -43,25 +47,70 @@ if not tavily_api_key:
 # Define model choices
 MODELS = {
     "default": "gpt-4.1-mini-2025-04-14",
-    "advanced": "deepseek-chat",  # Using GPT-4o for more complex designs and higher accuracy
-    "expert": "deepseek-chat",  # For extremely detailed and complex designs
+    "advanced": "gpt-4.1-nano-2025-04-14",  # Using GPT-4o for more complex designs and higher accuracy
+    "expert": "gpt-4.1-nano-2025-04-14",  # For extremely detailed and complex designs
 }
 
 # Initialize models
 try:
-    default_llm = ChatDeepSeek(model=MODELS["advanced"], temperature=0)
-    advanced_llm = ChatDeepSeek(model=MODELS["advanced"], temperature=0)
-    expert_llm = ChatDeepSeek(model=MODELS["advanced"], temperature=0)
+    # default_llm = ChatDeepSeek(model=MODELS["advanced"], temperature=0)
+    # advanced_llm = ChatDeepSeek(model=MODELS["advanced"], temperature=0)
+    # expert_llm = ChatDeepSeek(model=MODELS["advanced"], temperature=0)
 
     # default_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="high")
     # advanced_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="high")
     # expert_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="high")
+
+    default_llm = ChatOpenAI(model=MODELS["advanced"], temperature=0)
+    advanced_llm = ChatOpenAI(model=MODELS["advanced"], temperature=0)
+    expert_llm = ChatOpenAI(model=MODELS["advanced"], temperature=0)
     # Test connection
     default_llm.invoke("Test connection")
 except Exception as e:
-    print(f"Error initializing or connecting to OpenAI: {e}")
+    print(f"Error initializing or connecting to LLM: {e}") # Generic LLM error
     print("Please check your API key and network connection.")
     exit()
+
+# --- Local RAG Setup ---
+LOCAL_GUIDE_PATH = "guide.txt"
+FAISS_INDEX_PATH = "faiss_guide_index"
+
+try:
+    # Use OpenAI embeddings for now, ensure OPENAI_API_KEY is set for this
+    # If you have DeepSeek embeddings and API key, you can swap this
+    if not openai_api_key:
+        raise ValueError("OPENAI_API_KEY is required for embeddings used by local RAG.")
+    embeddings = OpenAIEmbeddings(api_key=openai_api_key)
+
+    faiss_path = Path(FAISS_INDEX_PATH)
+    if faiss_path.exists() and any(faiss_path.iterdir()):
+        print(f"💾 Loading existing FAISS index from: {FAISS_INDEX_PATH}")
+        local_vector_store = FAISS.load_local(FAISS_INDEX_PATH, embeddings, allow_dangerous_deserialization=True) # Added allow_dangerous_deserialization
+        local_retriever = local_vector_store.as_retriever(search_kwargs={"k": 5}) # Retrieve top 5 local results
+        print("✅ Local FAISS index loaded successfully.")
+    else:
+        # This part is optional - ideally the index is pre-built.
+        # If you want the script to build it if missing, uncomment and add text splitting logic.
+        print(f"⚠️ FAISS index not found at {FAISS_INDEX_PATH}. Local RAG from guide.txt will be disabled.")
+        # print(f"Attempting to build FAISS index from {LOCAL_GUIDE_PATH}...")
+        # guide_content = Path(LOCAL_GUIDE_PATH).read_text(encoding='utf-8')
+        # # Add text splitting logic here (e.g., RecursiveCharacterTextSplitter)
+        # # text_splitter = RecursiveCharacterTextSplitter(...)
+        # # texts = text_splitter.split_text(guide_content)
+        # # local_vector_store = FAISS.from_texts(texts, embeddings)
+        # # local_vector_store.save_local(FAISS_INDEX_PATH)
+        # # local_retriever = local_vector_store.as_retriever(search_kwargs={"k": 5})
+        # # print("✅ FAISS index built and saved.")
+        local_retriever = None # Disable if index doesn't exist
+
+except ImportError:
+    print("⚠️ Required libraries for FAISS (faiss-cpu or faiss-gpu) not found. Install with 'pip install faiss-cpu'. Local RAG disabled.")
+    local_retriever = None
+except Exception as e:
+    print(f"❌ Error setting up local RAG from {LOCAL_GUIDE_PATH}: {e}")
+    local_retriever = None
+# --- End Local RAG Setup ---
+
 
 # Pydantic models for structured output
 class ShapeRequirement(BaseModel):
@@ -312,7 +361,26 @@ def format_retrieved_context(docs: List[Dict]) -> str: # Changed type hint to Li
         return "No relevant context found."
     # Access content using dictionary key, default to empty string if key missing
     # Assuming the content key is 'content' based on TavilySearchResults typical output
-    return "\n\n".join([f"--- Context Source {i+1} ---\n{doc.get('content', 'Error: Content key not found in retrieved document.')}" for i, doc in enumerate(docs)])
+    """Formats the retrieved list of documents (from Tavily or FAISS) into a single string."""
+    if not docs:
+        return "No relevant context found."
+    
+    context_str = ""
+    # Handle both Document objects (from FAISS) and Dicts (from Tavily)
+    for i, doc in enumerate(docs):
+        if isinstance(doc, Document):
+            content = doc.page_content
+            source = doc.metadata.get('source', 'Local Guide') # Add source if available
+        elif isinstance(doc, dict):
+            content = doc.get('content', 'Error: Content key not found in retrieved document.')
+            source = doc.get('url', 'Web Search') # Use URL as source for Tavily
+        else:
+            content = str(doc) # Fallback
+            source = "Unknown Source"
+            
+        context_str += f"--- Context Source {i+1} ({source}) ---\n{content}\n\n"
+        
+    return context_str.strip()
 
 # Define chains
 requirement_analysis_chain = (
@@ -354,27 +422,50 @@ code_generation_chain = (
 )
 
 # Enhanced code generation chain with RAG
-# Setup for parallel execution: retrieve context and pass requirements
+# Setup for parallel execution: retrieve context from multiple sources and pass requirements
 rag_setup = RunnableParallel(
     {
-        # Process the retrieved documents using the helper function
-        "retrieved_context": (
-            # Use the new function to generate the query from design_requirements
+        # Retrieve from Tavily Web Search
+        "web_context": (
             (lambda x: create_rag_query(x["design_requirements"]))
             | retriever
-            | RunnableLambda(format_retrieved_context) # Apply formatting function
-        ) if retriever else (lambda x: "Tavily API key not set. Context retrieval disabled."),
+            # Note: Formatting happens *after* combining contexts
+        ) if retriever else (lambda x: []), # Return empty list if disabled
+
+        # Retrieve from Local FAISS Index
+        "local_context": (
+            (lambda x: create_rag_query(x["design_requirements"])) # Use same query logic
+            | local_retriever
+            # Note: Formatting happens *after* combining contexts
+        ) if local_retriever else (lambda x: []), # Return empty list if disabled
 
         "design_requirements": (lambda x: x["design_requirements"]),
-        # Keep user_text in the parallel step output if needed elsewhere, 
+        # Keep user_text in the parallel step output if needed elsewhere,
         # but it's no longer directly used for the retriever query.
         "user_text": (lambda x: x["user_text"]) 
     }
 )
 
+# Combine and format contexts after retrieval
+def combine_and_format_contexts(inputs: Dict[str, Any]) -> Dict[str, Any]:
+    """Combines contexts from web and local sources and formats them."""
+    combined_docs = inputs.get("web_context", []) + inputs.get("local_context", [])
+    
+    # Optional: Add logic here to de-duplicate or rank combined_docs if needed
+    
+    formatted_context = format_retrieved_context(combined_docs)
+    
+    # Return a dictionary suitable for the next step (code_generation_prompt)
+    return {
+        "design_requirements": inputs["design_requirements"],
+        "retrieved_context": formatted_context
+        # "user_text": inputs["user_text"] # Pass through if needed later
+    }
+
 # Define the RAG chain
 rag_code_generation_chain = (
     rag_setup
+    | RunnableLambda(combine_and_format_contexts) # Combine contexts here
     | code_generation_prompt
     | advanced_llm
     | StrOutputParser()
