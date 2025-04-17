@@ -17,7 +17,7 @@ from langchain_community.vectorstores import FAISS # Added for local RAG
 from langchain_openai import OpenAIEmbeddings # Added for local RAG (can be swapped if needed)
 # from langchain_deepseek import DeepseekEmbeddings # Alternative if available
 from langchain.text_splitter import RecursiveCharacterTextSplitter # Added for index building
-from typing import List, Optional, Dict, Any # Added Any
+from typing import List, Optional, Dict, Any, Union # Added Any
 import sys
 import json
 from pathlib import Path # Added for path handling
@@ -75,6 +75,7 @@ except Exception as e:
 # --- Local RAG Setup ---
 LOCAL_GUIDE_PATH = "guide.txt"
 LOCAL_GUIDE_PATH_2 = "guide2.txt" # Added second guide file
+LOCAL_EXAMPLES_PATH = "example.txt"  # Add examples file
 FAISS_INDEX_PATH = "faiss_guide_index"
 local_retriever = None # Initialize as None
 
@@ -96,20 +97,23 @@ try:
 
     faiss_path = Path(FAISS_INDEX_PATH)
     guide_path = Path(LOCAL_GUIDE_PATH)
-    guide_path2 = Path(LOCAL_GUIDE_PATH_2) # Added path for second guide
+    guide_path2 = Path(LOCAL_GUIDE_PATH_2)
+    examples_path = Path(LOCAL_EXAMPLES_PATH)  # Add examples path
 
     if faiss_path.exists() and any(faiss_path.iterdir()):
         print(f"💾 Loading existing FAISS index from: {FAISS_INDEX_PATH}")
         local_vector_store = FAISS.load_local(FAISS_INDEX_PATH, embeddings, allow_dangerous_deserialization=True)
         local_retriever = local_vector_store.as_retriever(search_kwargs={"k": 5}) # Retrieve top 5 local results
         print("✅ Local FAISS index loaded successfully.")
-    # Check if either guide file exists to build the index
-    elif guide_path.exists() or guide_path2.exists():
+    # Check if any of the source files exist to build the index
+    elif guide_path.exists() or guide_path2.exists() or examples_path.exists():
         print(f"⚠️ FAISS index not found at '{FAISS_INDEX_PATH}'.")
         guide_files_found = []
         if guide_path.exists(): guide_files_found.append(LOCAL_GUIDE_PATH)
         if guide_path2.exists(): guide_files_found.append(LOCAL_GUIDE_PATH_2)
+        if examples_path.exists(): guide_files_found.append(LOCAL_EXAMPLES_PATH)
         print(f"🔧 Attempting to build FAISS index from: {', '.join(guide_files_found)}...")
+
         try:
             combined_guide_content = ""
             if guide_path.exists():
@@ -118,6 +122,9 @@ try:
             if guide_path2.exists():
                 print(f"   - Reading content from '{LOCAL_GUIDE_PATH_2}'...")
                 combined_guide_content += guide_path2.read_text(encoding='utf-8') + "\n\n"
+            if examples_path.exists():
+                print(f"   - Reading content from '{LOCAL_EXAMPLES_PATH}'...")
+                combined_guide_content += examples_path.read_text(encoding='utf-8') + "\n\n"
 
             # Split the combined document into chunks
             text_splitter = RecursiveCharacterTextSplitter(
@@ -126,7 +133,7 @@ try:
                 length_function=len,
             )
             texts = text_splitter.split_text(combined_guide_content)
-            print(f"   - Split combined guide content into {len(texts)} chunks.")
+            print(f"   - Split combined content into {len(texts)} chunks.")
 
             # Create FAISS index from combined text chunks
             print("   - Creating embeddings and building FAISS index (this may take a moment)...")
@@ -140,8 +147,8 @@ try:
             print("   Local RAG will be disabled.")
             local_retriever = None
     else:
-        # Update the message if neither index nor guide files are found
-        print(f"⚠️ FAISS index not found at '{FAISS_INDEX_PATH}' and guide files ('{LOCAL_GUIDE_PATH}', '{LOCAL_GUIDE_PATH_2}') not found.")
+        # Update the message to include all possible source files
+        print(f"⚠️ FAISS index not found at '{FAISS_INDEX_PATH}' and source files ('{LOCAL_GUIDE_PATH}', '{LOCAL_GUIDE_PATH_2}', '{LOCAL_EXAMPLES_PATH}') not found.")
         print("   Local RAG cannot be initialized.")
         local_retriever = None
 
@@ -170,7 +177,7 @@ print("--- Web RAG Setup Complete ---")
 # Pydantic models for structured output
 class ShapeRequirement(BaseModel):
     shape_type: str = Field(description="Geometric shape type (box, cylinder, sphere, cone, etc.)")
-    dimensions: Dict[str, float] = Field(description="Shape dimensions (e.g.: length, width, height, radius)")
+    dimensions: Dict[str, Union[float, str]] = Field(description="Shape dimensions (e.g.: length, width, height, radius) with optional units")
     position: Optional[List[float]] = Field(None, description="Position [x, y, z]")
     rotation: Optional[List[float]] = Field(None, description="Rotation angles [xrot, yrot, zrot] in degrees")
 
@@ -273,21 +280,21 @@ code_generation_template = """You are an expert Onshape FeatureScript developer 
 {design_requirements}
 ```
 
-**Retrieved Context (from local guide.txt/guide2.txt and web search - CRITICAL REFERENCE):**
+**Retrieved Context (from local guide.txt/guide2.txt/example.txt and web search - CRITICAL REFERENCE):**
 ```
 {retrieved_context}
 ```
 
 **Task:** Generate a complete and functional Onshape FeatureScript code snippet that defines a custom feature accurately modeling the object described in the analyzed design requirements.
 
-**CRITICAL INSTRUCTION:** You MUST strictly follow the syntax, best practices, function usage, and examples provided in the **Retrieved Context**. Pay close attention to the patterns shown in `guide.txt` and `guide2.txt` (which are part of the context). Do NOT deviate from these guidelines.
+**CRITICAL INSTRUCTION:** You MUST strictly follow the syntax, best practices, function usage, and examples provided in the **Retrieved Context**. Pay close attention to the patterns shown in `guide.txt` and `guide2.txt` and `example.txt` (which are part of the context). Do NOT deviate from these guidelines.
 
 **Mandatory requirements for the generated FeatureScript code (Must align with Retrieved Context):**
 
 1.  **Import Statement:** Use the standard import as shown in the context, typically:
     ```featurescript
-    FeatureScript <version>; // Use appropriate version if specified in context
-    import(path : "onshape/std/common.fs", version : "<version>"); // Use appropriate version
+    FeatureScript 2625;
+    import(path : "onshape/std/common.fs", version : "2625.0"); // Use appropriate version
     ```
 2.  **Feature Annotation:** Include a descriptive `Feature Type Name` as shown in context examples:
     ```featurescript
@@ -302,11 +309,7 @@ code_generation_template = """You are an expert Onshape FeatureScript developer 
     ```featurescript
     precondition
     {{
-        // Example:
-        annotation {{ "Name" : "Slot Width", "Filter" : EntityType.EDGE }} // Use appropriate filters from context
-        isLength(definition.slotWidth, LENGTH_BOUNDS); // Use correct bounds specifier
-
-        // ... other parameters based on requirements and context examples
+        //Always keep empty
     }}
     ```
 5.  **Main Feature Block:** Implement the logic using ONLY the functions and patterns demonstrated in the **Retrieved Context**.
@@ -390,15 +393,25 @@ code_validation_prompt = ChatPromptTemplate.from_template(code_validation_templa
 def json_to_pydantic(json_str: str) -> DesignRequirements:
     """Convert JSON string to Pydantic model"""
     try:
-        # Clean up the JSON string if needed
         if "```json" in json_str:
             json_str = re.search(r'```json\s*(.*?)\s*```', json_str, re.DOTALL).group(1)
-        
+
         data = json.loads(json_str)
+        
+        # Convert dimension values to float if they're numeric strings
+        if "shapes" in data:
+            for shape in data["shapes"]:
+                if "dimensions" in shape:
+                    for key, value in shape["dimensions"].items():
+                        try:
+                            shape["dimensions"][key] = float(value)
+                        except (ValueError, TypeError):
+                            # Keep as string if it contains units
+                            pass
+
         return DesignRequirements(**data)
     except Exception as e:
         print(f"Error converting JSON to Pydantic: {e}")
-        # Return a minimal valid object
         return DesignRequirements(
             title="Unable to parse requirements",
             shapes=[ShapeRequirement(shape_type="box", dimensions={"length": 10, "width": 10, "height": 10})],
@@ -423,7 +436,7 @@ def process_validation_result(validation_result: str) -> dict:
     try:
         if "```json" in validation_result:
             validation_result = re.search(r'```json\s*(.*?)\s*```', validation_result, re.DOTALL).group(1)
-        
+
         return json.loads(validation_result)
     except Exception as e:
         print(f"Error processing validation result: {e}")
@@ -439,68 +452,52 @@ def create_rag_query(design_reqs: DesignRequirements) -> str:
     """Creates a focused RAG query for FeatureScript based on analyzed design requirements."""
     shape_types = []
     if design_reqs.shapes:
-        shape_types = list(set([s.shape_type for s in design_reqs.shapes])) # Get unique shape types
+        shape_types = list(set([s.shape_type for s in design_reqs.shapes]))
 
-    operation_types = []
-    if design_reqs.operations:
-        # Map general terms to FeatureScript-specific terms
-        op_map = {
-            "cut": "opBoolean SUBTRACTION", 
-            "fuse": "opBoolean UNION", 
-            "common": "opBoolean INTERSECTION"
-        }
-        fs_ops = [op_map.get(o.operation_type, o.operation_type) for o in design_reqs.operations]
-        operation_types = list(set(fs_ops))
+    # Add specific queries for example shapes
+    example_queries = []
+    for shape in shape_types:
+        if shape == "box":
+            example_queries.append("Simple box example")
+        elif shape == "cylinder":
+            example_queries.append("Simple Cylinder example")
+        elif shape == "sphere":
+            example_queries.append("Simple Sphere example")
 
-    # Map shapes to specific FeatureScript operations
+    # Combine with existing query logic
+    query_parts = ["Onshape FeatureScript"]
+    query_parts.extend(example_queries)
+
+    # Add existing shape-specific operations
     shape_map = {
-        "box": "opSketch skRectangle opExtrude", 
-        "cylinder": "opSketch skCircle opExtrude", 
-        "sphere": "opSketch skArc opRevolve", 
+        "box": "opSketch skRectangle opExtrude",
+        "cylinder": "opSketch skCircle opExtrude",
+        "sphere": "opSketch skArc opRevolve",
         "cone": "opSketch skLine opRevolve",
         "torus": "opSketch skCircle opRevolve"
     }
-    
-    # Start with Onshape FeatureScript as base
-    query_parts = ["Onshape FeatureScript"]
-    
-    # Add shape-specific operations
-    if shape_types:
-        for shape in shape_types:
-            if shape in shape_map:
-                query_parts.append(shape_map[shape])
-    
+
+    for shape in shape_types:
+        if shape in shape_map:
+            query_parts.append(shape_map[shape])
+
     # Add operation-specific terms
-    if operation_types:
-        query_parts.extend(operation_types)
+    if design_reqs.operations:
+        op_map = {
+            "cut": "opBoolean SUBTRACTION",
+            "fuse": "opBoolean UNION",
+            "common": "opBoolean INTERSECTION"
+        }
+        fs_ops = [op_map.get(o.operation_type, o.operation_type) for o in design_reqs.operations]
+        query_parts.extend(list(set(fs_ops)))
 
-    # Check for special features
-    features = getattr(design_reqs, 'features', [])
-    if features:
-        for feature in features:
-            if hasattr(feature, 'feature_type'):
-                feature_type = feature.feature_type.lower()
-                if "fillet" in feature_type:
-                    query_parts.append("opFillet")
-                elif "chamfer" in feature_type:
-                    query_parts.append("opChamfer")
-                elif "hole" in feature_type:
-                    query_parts.append("opHole")
-                elif "pattern" in feature_type:
-                    query_parts.append("opPattern")
-                elif "shell" in feature_type:
-                    query_parts.append("opShell")
-                elif "draft" in feature_type:
-                    query_parts.append("opDraft")
-
-    # Add more specific version number term
     query_parts.append("commonImports.fs version")
-    
+
     # Join all parts with space
-    query = " ".join(list(dict.fromkeys(query_parts))) # Join unique parts
+    query = " ".join(list(dict.fromkeys(query_parts)))
 
     # Fallback if no specific terms identified
-    if len(query_parts) <= 2:  # If only "Onshape FeatureScript" and version
+    if len(query_parts) <= 2:
         fallback_term = design_reqs.title if design_reqs.title else 'custom feature'
         return f"Onshape FeatureScript {fallback_term} example code"
 
@@ -516,7 +513,7 @@ def format_retrieved_context(docs: List[Dict]) -> str: # Changed type hint to Li
     """Formats the retrieved list of documents (from Tavily or FAISS) into a single string."""
     if not docs:
         return "No relevant context found."
-    
+
     context_str = ""
     # Handle both Document objects (from FAISS) and Dicts (from Tavily)
     for i, doc in enumerate(docs):
@@ -529,9 +526,9 @@ def format_retrieved_context(docs: List[Dict]) -> str: # Changed type hint to Li
         else:
             content = str(doc) # Fallback
             source = "Unknown Source"
-            
+
         context_str += f"--- Context Source {i+1} ({source}) ---\n{content}\n\n"
-        
+
     return context_str.strip()
 
 # Define chains
@@ -594,7 +591,7 @@ rag_setup = RunnableParallel(
         "design_requirements": (lambda x: x["design_requirements"]),
         # Keep user_text in the parallel step output if needed elsewhere,
         # but it's no longer directly used for the retriever query.
-        "user_text": (lambda x: x["user_text"]) 
+        "user_text": (lambda x: x["user_text"])
     }
 )
 
@@ -602,11 +599,11 @@ rag_setup = RunnableParallel(
 def combine_and_format_contexts(inputs: Dict[str, Any]) -> Dict[str, Any]:
     """Combines contexts from web and local sources and formats them."""
     combined_docs = inputs.get("web_context", []) + inputs.get("local_context", [])
-    
+
     # Optional: Add logic here to de-duplicate or rank combined_docs if needed
-    
+
     formatted_context = format_retrieved_context(combined_docs)
-    
+
     # Return a dictionary suitable for the next step (code_generation_prompt)
     return {
         "design_requirements": inputs["design_requirements"],
@@ -657,7 +654,7 @@ class TextToCADAgent:
             print(f"   Title: {design_requirements.title}")
             print(f"   Number of shapes: {len(design_requirements.shapes)}")
             print(f"   Complexity level: {design_requirements.complexity_level}/5")
-            
+
             if design_requirements.operations:
                 print(f"   Number of operations: {len(design_requirements.operations)}")
 
@@ -795,7 +792,7 @@ if __name__ == "__main__":
     else:
         # Process example requests for FeatureScript
         example_requests = [
-            "box"
+            "Create a rectangular box 20x30x40mm with one central through hole (radius 10mm) and four corner through holes (radius 2mm)"
         ]
 
         for i, request in enumerate(example_requests, 1):
