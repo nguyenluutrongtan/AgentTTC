@@ -1,0 +1,2667 @@
+Create a slot feature in FeatureScript
+In this series of tutorials, we will create a slot feature, designed for joining two laser-cut parts. Eventually, we will use this feature to make large assemblies of laser-cuttable parts which are joined with slot features.
+
+Onshape Slot feature Full laser cut assembly
+The slot feature is just one example of what FeatureScript can do, but each tutorial in the series introduces concepts which can be applied to a wide variety of features.
+
+In the first tutorial, we'll walk through how to:
+
+Create a new "Slot" feature type
+Specify the feature's inputs
+Define the feature's behavior
+Use instances of the feature in a Part Studio
+Motivation
+A slot is simple to create with or without using FeatureScript. However, encapsulating the behavior in a custom feature provides some key advantages:
+
+Interface control: With FeatureScript, we can fully specify the feature dialog interface, and optimize the workflow. In this tutorial, our feature's input will include the sketched path, but in future tutorials, we improve this interface so that we can create a pair of slots with just two selections.
+
+Update everywhere: Each instance of a "Slot" feature points to the same feature definition, so each time we improve our slot feature, every instance in the document is immediately updated. When using features from a different document, a user can update by repointing their document to any published version of the feature.
+
+Error handling: When invalid inputs are entered, errors can be reported to help diagnose what's wrong. With this workflow, the end user will immediately see if they've made a slot that won't fit, or won't laser cut: reported errors will turn a feature red in the feature tree.
+
+Quality assurance: Your features will have more knowledge about their purpose than generic Onshape features, so their specific edge cases can be handled better. This, in combination with error handling, can mean the end user is less likely to make mistakes.
+
+Video overview
+This video shows the creation of the slot feature. It demonstrates what a FeatureScript workflow can look like, and creates the same "Slot" feature type that the tutorial will guide you through below.
+
+Step-by-step guide
+This guide will take you step by step through the actions shown in the video above, explaining what the FeatureScript does and why. Major FeatureScript concepts will be marked in bold when they are explained.
+
+READING FEATURESCRIPT TUTORIALS
+
+In this and all other FeatureScript tutorials, changes to the code will always be mentioned in code blocks, like those below. The surrounding instructions will tell you about that code and what to do with it. In addition, the code block's color gives an indication about what action needs to be taken:
+
+Green indicates that this code should be inserted into the Feature Studio.
+Red indicates that this code should be deleted from the Feature Studio.
+Yellow indicates that this code should be changed. The newly changed code is highlighted.
+Blue indicates that this code is unchanged or final.
+Create a feature definition
+Start by creating a new Feature Studio tab in a new Onshape document:
+
+Create new Feature Studio
+
+A Feature Studio is a place for editing FeatureScript where you can define functions to be used as feature types. All of Onshape's native feature types, from extrude to helix, are also written as FeatureScript feature types in the Onshape Standard Library. Custom feature types that you write here will be treated like Onshape feature types in the Part Studio.
+
+In the Feature Studio, in the top-left corner, click the "New feature" button.
+
+This will insert the following code, which is the minimum template for defining an empty feature type:
+
+annotation { "Feature Type Name" : "My Feature" }
+export const myFeature = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        // Define the parameters of the feature type
+    }
+    {
+        // Define the function's action
+    });
+For more information about the structure and pieces of a feature definition, see Writing features.
+
+NOTE
+
+In the Feature Studio, the code inserted by the "New feature" button has several sections of text marked as autocomplete regions. If you look closely, you can identify these regions by a thin, gray box outline:
+Autocompletion regions
+
+Autocomplete regions are temporary navigation aids designed to help you write features quickly, and generally indicate the regions of inserted text that you are likely to change. You can navigate your cursor through these regions using the following keyboard shortcuts:
+
+tab : Select next autocomplete region
+shift-tab : Select previous autocomplete region
+escape : Dismiss all autocomplete regions
+Moving your cursor outside a region (with the mouse or arrow keys) will also dismiss all autocomplete regions.
+
+After pressing the "New feature" button, you should see the text "My Feature" highlighted. This field is a string which defines the user-visible name of the feature type. This name is seen when a user inserts the feature, and in default feature names (e.g. "Extrude 1"). The feature type name can include whitespace, and can be changed at any time without affecting Part Studios' behavior or other FeatureScript code.
+
+Change the feature type name to "Slot":
+
+annotation { "Feature Type Name" : "Slot" }
+Select the text myFeature on the next line (with autocomplete regions, you can press tab to select the next field). This is the FeatureScript name of this feature function. The function name is used by any FeatureScript calls that create this feature, including features created in the Part Studio. Thus, changing this name after creating features will break all features created with the old name. This name cannot include whitespace or special characters.
+
+Change the FeatureScript function name to "slot":
+
+export const slot = defineFeature(function(context is Context, id is Id, definition is map)
+Your Feature Studio should now look like this (but with a different FeatureScript version and import version):
+
+FeatureScript 1890;
+import(path : "onshape/std/common.fs", version : "1890.0");
+
+annotation { "Feature Type Name" : "Slot" }
+export const slot = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        // Define the parameters of the feature type
+    }
+    {
+        // Define the function's action
+    });
+Define the feature's input parameters
+Select the next region: "// Define the parameters of the feature type". This section of code, between the two curly braces, is the function's precondition. The precondition is used, in part, to define a feature's input parameters. The text highlighted is a comment, which does not affect FeatureScript evaluation.
+
+Delete this comment:
+
+// Define the parameters of the feature type
+Our feature's first input parameter will be an edge which defines the slot path. Input parameters to features are stored in its definition: a map whose keys are strings. These parameters can later be accessed from the definition to define how the feature should be built.
+
+All geometry in FeatureScript is passed into features as Queries, so we will define a query parameter.
+
+Start typing "query". The autocompletion menu will expand below your cursor as you type. One of the autocompletions you should be able to see is "Query parameter", a snippet of code which, when placed in a feature precondition, defines a query parameter.
+
+NOTE
+
+Typing in a Feature Studio will often bring up a context-sensitive autocomplete menu. This menu shows a list of one or more autocompletions which match what you're typing:
+Autocomplete menu
+
+The flyout on the right side shows a preview of the text you will autocomplete, along with a short description. Autocomplete will show FeatureScript functions (including features), types, enums, and snippets (i.e. short FeatureScript code templates).
+
+When an autocompletion menu is open, you can use the following shortcuts to navigate the menu:
+
+up/down arrow keys : Select next/previous item in menu
+enter : Insert selected autocompletion
+escape : Remove the autocompletion menu
+Use the arrow keys (if necessary) to select the "Query parameter" snippet, and press enter to insert the autocompletion. This will insert the following code:
+
+annotation { "Name" : "My Query", "Filter" : EntityType.FACE, "MaxNumberOfPicks" : 1 }
+definition.parameter is Query;
+NOTE
+
+The code above represents a feature parameter, which the user will pass into the feature, and FeatureScript code will use. The parameter is defined on the second line, which asserts that the field "parameter" on the definition is a Query for geometry.
+The first line is an annotation, associated with the line that defines the parameter. The information in this annotation indicates how Onshape should create an entry for this parameter in the feature dialog.
+
+After inserting the Query parameter autocompletion, you should see the text "My Query" highlighted. This is the user-visible name of the parameter. Query parameter names are visible in the feature dialog when the field is empty.
+
+Change the user-visible parameter name to "Slot path":
+
+annotation { "Name" : "Slot path", "Filter" : EntityType.FACE, "MaxNumberOfPicks" : 1 }
+definition.parameter is Query;
+Select the next region: "EntityType.FACE". This field represents a filter that controls which geometric entities can be accepted by the parameter. You can filter by EntityType, GeometryType, BodyType, and more.
+
+To allow only edges, change the filter to "EntityType.EDGE":
+
+annotation { "Name" : "Slot path", "Filter" : EntityType.EDGE, "MaxNumberOfPicks" : 1 }
+definition.parameter is Query;
+Select the next region: "1". This field represents the maximum number of selections the user can make in this field. This field can also be removed to allow infinite selections.
+
+To allow just one edge selection, leave the default of 1:
+
+annotation { "Name" : "Slot path", "Filter" : EntityType.EDGE, "MaxNumberOfPicks" : 1 }
+definition.parameter is Query;
+Select the next region: "parameter". This is the FeatureScript-visible name of this parameter, which will later be used to access this parameter within the function's body. The value of this parameter is stored as a Query on a map named "definition".
+
+Change the FeatureScript parameter name to "slotPath":
+
+annotation { "Name" : "Slot path", "Filter" : EntityType.FACE, "MaxNumberOfPicks" : 1 }
+definition.slotPath is Query;
+The second parameter will define the part to cut. Since this parameter will also take in model geometry, we will use another query parameter.
+
+On the line after the slot path parameter, start typing "query", and select the autocompletion for "Query parameter":
+
+annotation { "Name" : "My Query", "Filter" : EntityType.FACE, "MaxNumberOfPicks" : 1 }
+definition.parameter is Query;
+Fill out its fields with the following:
+
+annotation { "Name" : "Part to cut", "Filter" : EntityType.BODY && BodyType.SOLID, "MaxNumberOfPicks" : 1 }
+definition.partToCut is Query;
+NOTE
+
+The filter above specifies that a user can select any full part in the Part Studio to use for this parameter.
+Any selectable piece of topology in Onshape (edges, vertices, parts, etc.) is known as an entity. Every entity has an EntityType and a BodyType which specify what kind of geometry it represents.
+
+The EntityType BODY specifies a full, independent object in the Part Studio. A BODY is often a part, but it can also be things of lower dimension. The dimension of a body is distinguished by its BodyType:
+
+BodyType.SOLID, as in the filter above, specifies an independent three-dimensional part (such as the result of extruding a sketch region)
+BodyType.SHEET specifies an independent two-dimensional surface (such as the default planes, or the result of extruding a sketch edge)
+BodyType.WIRE specifies an independent one-dimensional path (such as the result of a helix feature)
+BodyType.POINT specifies a independent zero-dimensional point (such as the origin, or the result of opPoint)
+Entities which are not EntityType.BODY, like a single face of a part, are always children of some other entity. The other EntityTypes specify child entities of a certain dimension:
+
+EntityType.FACE specifies a two-dimensional child
+EntityType.EDGE specifies a one-dimensional child
+EntityType.VERTEX specifies a zero-dimensional child
+A child entity will have a BodyType which matches dimension of its owner body.
+
+For more information on combining these and other filters, refer to the documentation on query parameters.
+
+The final feature parameter will define the width of the slot. Since this parameter is a one-dimensional distance, we will use a length parameter.
+
+On the line after the slot path parameter, start typing "length", and select the autocompletion for "Length parameter":
+
+annotation { "Name" : "My Length" }
+isLength(definition.parameter, LENGTH_BOUNDS);
+Fill out its fields to name the parameter:
+
+annotation { "Name" : "Width" }
+isLength(definition.width, LENGTH_BOUNDS);
+Add blank lines between the parameters for code readability. Your final precondition should now look as follows:
+
+precondition
+{
+    annotation { "Name" : "Slot path", "Filter" : EntityType.EDGE, "MaxNumberOfPicks" : 1 }
+    definition.slotPath is Query;
+
+    annotation { "Name" : "Part to cut", "Filter" : EntityType.BODY && BodyType.SOLID, "MaxNumberOfPicks" : 1 }
+    definition.partToCut is Query;
+
+    annotation { "Name" : "Width" }
+    isLength(definition.width, LENGTH_BOUNDS);
+}
+NOTE
+
+FeatureScript is a whitespace insensitive language. This means that, as long as you aren't breaking up individual words or strings, you can insert or remove spaces and newlines anywhere without affecting the meaning.
+At this point, your Feature Studio should be free of errors. You can determine this by looking at the FeatureScript notices indicator on the right side of the top navbar. If there are no errors, this icon will be gray. If there are only warnings, it will be yellow. If there are errors, it will be red:
+
+No errors Warnings Errors
+FeatureScript notices indicator
+Create an instance of your feature
+To commit the changes you've made to your Feature Studio, press the "Commit" button in the FeatureScript toolbar:
+
+Commit button
+
+NOTE
+
+The FeatureScript you write is always being saved in the cloud, just like other Onshape tabs. However, because code is usually not sensible as it's being typed, FeatureScript changes are not immediately visible to other tabs. For this, you will need to commit your changes.
+You can think of "commit" as "Update the whole document with these changes". Once changes to a Feature Studio are committed, Part Studios which depend on that Feature Studio will regenerate when you switch to them. If this causes run-time errors, those errors will appear in the FeatureScript notices flyout at this point.
+
+If you have changed a Feature Studio but not committed, you will see an asterisk before the element name on the Feature Studio tab, indicating the presence of uncommited changes:
+
+Commit status indicator
+
+If you close a browser tab with uncommitted changes, nothing is lost. You'll still see these uncommitted changes in the Feature Studio when you return.
+
+Switch to Part Studio 1. In this Part Studio, make some geometry that the slot feature can be tested on. Create a sketch with internal, perpendicular edges, like the one below, and extrude it:
+
+Part Studio sketch
+
+You should see a new icon in the toolbar for your new custom "Slot" feature. This dropdown menu will show all the custom feature types defined in this workspace.
+
+FeatureScript menu
+
+The name "Slot" seen here comes from the "Feature Type Name" you defined in the Feature Studio earlier. The icon for the feature is created automatically with the first two letter of that name.
+
+Click the Slot feature button. This will pull up a feature dialog for your feature. If your precondition is written correctly, this feature dialog should look like this:
+
+Slot feature dialog
+
+As input to your feature, choose an internal edge for the slot, choose the extruded part as the part to cut, and set the width to "3mm".
+
+Completed feature dialog
+
+NOTE
+
+When selecting the slot path, only edges are selectable. When selecting the part to cut, only solid bodies are selectable. This is the effect of setting the "Filter" field on the two query parameters.
+Define the Feature's behavior
+The feature you created currently has no effect because the body of the feature function is empty. A feature function body is a block of code which will execute for each feature of this type, every time a Part Studio is regenerated.
+
+In this section, we will use the following operations in the function body to create the slot:
+
+Extrude the slot edge as a surface
+Thicken the surface
+Subtract the result from the part to cut.
+Because these operations are wholly contained within the Slot feature, the end user will not see these operations in their feature tree: just a single feature named e.g. "Slot 1". The feature will also clean up after itself, so the end user will never see any intermediate geometry created.
+
+Switch back to the Feature Studio. In the feature's body (between the second pair of braces), there should still be a comment saying "// Define the function's action".
+
+Delete this comment:
+
+// Define the function's action
+The first operation will extrude the sketch edge.
+
+In the feature's body, type "opExtrude", and select the autocompletion for the opExtrude function.
+
+Extrude autocomplete menu
+
+This will insert the following code:
+
+opExtrude(context, id + "extrude1", {
+        "entities" : entities,
+        "direction" : evOwnerSketchPlane(context, {"entity" : entities}).normal,
+        "endBound" : BoundingType.BLIND,
+        "endDepth" : 1 * inch
+});
+NOTE
+
+Functions in the standard library with the "op" prefix are operations. These functions all perform some change to the context which modifies its geometry.
+Often, there will also be a feature function which calls the operation (in the case of extruding, the extrude feature calls the opExtrude function). The feature is wrapper which provides a nice Part Studio interface on top of that operation, sometimes with additional operations (for instance, the extrude includes additional parameters to optionally add a boolean and a draft). In FeatureScript, it's often a better idea to call the operation directly.
+
+After insertion, you should see the parameter "context" highlighted. This is the Context, a data structure which contains all geometry in the Part Studio. Almost always, your features will involve a single Context named "context", passed in from the Part Studio. Here, we pass it on to the extrude function so that extrude can create geometry in the Part Studio.
+
+The default autocompletion of "context" makes sense, so leave it.
+
+opExtrude(context, id + "extrude1", {
+        "entities" : entities,
+        "direction" : evOwnerSketchPlane(context, {"entity" : entities}).normal,
+        "endBound" : BoundingType.BLIND,
+        "endDepth" : 1 * inch
+});
+With the tab key or the mouse, select the next parameter: id + "extrude1". This is the Id, a unique identifier for the extrude operation being performed.
+
+The default Id is already unique and descriptive, so leave it.
+
+opExtrude(context, id + "extrude1", {
+        "entities" : entities,
+        "direction" : evOwnerSketchPlane(context, {"entity" : entities}).normal,
+        "endBound" : BoundingType.BLIND,
+        "endDepth" : 1 * inch
+});
+NOTE
+
+An Id is a hierarchical identifier for a specific operation or feature. When the Part Studio creates a slot feature, a unique Id, named "id", is passed in. Each slot feature created will have a different unique id.
+The expression id + "extrude1" creates a sub-id of this feature's id. We use the sub-id to label this specific invocation of the extrude feature. Thus, each instance of a slot will contain an instance of an extrude, all labeled uniquely (idForSlot1 + "extrude1", idForSlot2 + "extrude1", etc.).
+
+As we will see soon, any Id can be used in a later operation to specify the geometry created by the feature or operation with that id. This will include any geometry created by sub-ids.
+
+Select the text next to the "entities" field. This field defines what geometry should be extruded. We want to extrude the sketch edge passed in. This edge is stored on on the definition as slotPath, as we defined in the precondition.
+
+Change the entities field to definition.slotPath:
+
+opExtrude(context, id + "extrude1", {
+        "entities" : definition.slotPath,
+        "direction" : evOwnerSketchPlane(context, {"entity" : entities}).normal,
+        "endBound" : BoundingType.BLIND,
+        "endDepth" : 1 * inch
+});
+Select the text next to the "direction" field. This field defined what direction to extrude in. We want this feature to extrude the surface perpendicular to the sketch normal.
+
+The default autocompletion makes a call to the evOwnerSketchPlane get the correct direction vector. We want to do the same, but instead evaluate the owner sketch of the slotPath.
+
+opExtrude(context, id + "extrude1", {
+        "entities" : definition.slotPath,
+        "direction" : evOwnerSketchPlane(context, {"entity" : definition.slotPath}).normal,
+        "endBound" : BoundingType.BLIND,
+        "endDepth" : 1 * inch
+});
+NOTE
+
+Functions from the standard library with the "ev" prefix are evaluations. These functions all obtain data and/or measurements from the entities inside a context.
+The result of an evaluation function is a value which can be used in subsequent calculations. For instance, evOwnerSketchPlane returns a value with type Plane. A Plane has the information define its position and orientation in 3D space, including a 3D unit Vector defining the plane's normal direction. Above, we use this normal field above as the extrude direction.
+
+Press tab to select the text next to the "endBound" field. This field specifies a BoundingType: one of BLIND, THROUGH_ALL, etc.
+
+Change the endBound to "BoundingType.THROUGH_ALL":
+
+opExtrude(context, id + "extrude1", {
+        "entities" : definition.slotPath,
+        "direction" : evOwnerSketchPlane(context, {"entity" : definition.slotPath}).normal,
+        "endBound" : BoundingType.THROUGH_ALL,
+        "endDepth" : 1 * inch
+});
+Press tab to select the text next to the "depth" field. Since we've chosen a THROUGH_ALL extrude, this field isn't necessary.
+
+Delete the entire depth parameter:
+
+opExtrude(context, id + "extrude1", {
+        "entities" : definition.slotPath,
+        "direction" : evOwnerSketchPlane(context, {"entity" : definition.slotPath}).normal,
+        "endBound" : BoundingType.THROUGH_ALL,
+        "endDepth" : 1 * inch
+});
+In its place, we will specify that the start bound of the extrude should also be THROUGH_ALL.
+
+This addition gives us some extra robustness in making sure the slot cuts properly. In the one instance we've made in a Part Studio, we defined the slot sketch on the bottom surface of the part, so the sketch normal points directly into the part. However, we want this feature to still work if a user puts a sketch on the top surface, or in the center, or even off of the part.
+
+Add the field "startBound" : BoundingType.THROUGH_ALL as the last field in the extrude call:
+
+opExtrude(context, id + "extrude1", {
+        "entities" : definition.slotPath,
+        "direction" : evOwnerSketchPlane(context, {"entity" : definition.slotPath}).normal,
+        "endBound" : BoundingType.THROUGH_ALL,
+        "startBound" : BoundingType.THROUGH_ALL
+});
+Press the commit button. At this point, your FeatureScript notices panel should be free of errors.
+
+If you switch back to the Part Studio, you should see a surface extruded from the edge in your slot feature in two directions:
+
+Part Studio after second direction extrude
+
+The next operation will thicken the surface to the slot width.
+
+After the extrude call, type and select the autocompletion for opThicken. This will insert the following code:
+
+opThicken(context, id + "thicken1", {
+        "entities" : entities,
+        "thickness1" : 0.1 * inch,
+        "thickness2" : 0.1 * inch
+});
+For this operation, the context should be left as "context", as usual. The Id default of "id + "thicken1"" is unique and descriptive, so leave that too.
+
+The "entities" should specify the surface to thicken. Specify a query for the surface we just created using qCreatedBy, passing in the id of the first extrude:
+
+opThicken(context, id + "thicken1", {
+        "entities" : qCreatedBy(id + "extrude1", EntityType.BODY),
+        "thickness1" : 0.1 * inch,
+        "thickness2" : 0.1 * inch
+});
+NOTE
+
+A Query, like qCreatedBy, is a way to refer to topological entities (vertices, edges, faces, and bodies) in FeatureScript.
+You can think of a query as an order form for entities, with one or more criteria that the specified entities must satisfy. The query itself does not contain the entities. Rather a query specifies a set of entities in a context (remember: the context contains all the geometry). When you pass a query into an operation function, that function uses the query and the context to perform the operation on the right entities.
+
+Other examples of queries are the two query parameters you've defined: slotPath and partToCut. These queries are generated automatically when a user selects entities, and stored in the fields definition.slotPath and definition.partToCut. The generated queries refer to the selected entities in a robust way so that features can be resistant to upstream changes. For instance, if a user selects an edge on the cap face of an extrude, then later flips the direction of that extrude, they'll find the downstream feature now has the same edge selected on the opposite side of the extrude, as expected.
+
+A query may evaluate to zero, one, or many entities. To see all the queries FeatureScript has available, refer to the Query module.
+
+thickness1 and thickness2 specify how much to thicken on each side of the surface. Let's make the slot symmetric, and thicken each side by half the slot width:
+
+opThicken(context, id + "thicken1", {
+        "entities" : qCreatedBy(id + "extrude1", EntityType.BODY),
+        "thickness1" : definition.width / 2,
+        "thickness2" : definition.width / 2
+});
+Press the commit button. In your Part Studio, you should see the thickened surface: a new solid body in your Context.
+
+Thickened surface in parts list Thickened surface
+The thicken operation did not delete the original extruded surface, so let's clean that up now. Type and select the autocompletion for opDeleteBodies. This will insert:
+
+opDeleteBodies(context, id + "deleteBodies1", {
+        "entities" : entities
+});
+Leave the default Context and Id, and set the "entities" to "qCreatedBy(id + "extrude1", EntityType.BODY)", the same query for the surface body created by the extrusion:
+
+opDeleteBodies(context, id + "deleteBodies1", {
+        "entities" : qCreatedBy(id + "extrude1", EntityType.BODY)
+});
+In your Part Studio, you should see the extruded surface disappear, but the new thickened body should still be present:
+
+Deleted surface in parts list Deleted surface
+The final operation will subtract the thickened surface from the specified "Part to cut". Type and select the autocompletion for opBoolean:
+
+opBoolean(context, id + "boolean1", {
+        "tools" : tools,
+        "operationType" : BooleanOperationType.UNION
+});
+Leave the default Context and Id, and set the following parameters:
+
+"tools", the parts to subtract, should be the result of the Thicken operation: "qCreatedBy(id + "thicken1", EntityType.BODY)"
+"targets", the parts to be cut, should be set to the part set on the definition: "definition.partToCut"
+"operationType", the boolean operation to perform, should be "BooleanOperationType.SUBTRACTION"
+opBoolean(context, id + "boolean1", {
+        "tools" : qCreatedBy(id + "thicken1", EntityType.BODY),
+        "targets" : definition.partToCut,
+        "operationType" : BooleanOperationType.SUBTRACTION
+});
+In your Part Studio, you should now see the slot correctly cut out of your part, and the thickened body deleted:
+
+Slot subtraction
+
+Congratulations! You've just completed your first FeatureScript feature.
+
+Feel free to play around with the feature. The slot feature function will be called again (i.e. regenerated) every time you change a slot feature's parameters, or change a feature upstream of a slot feature in the feature tree. After you update a Feature Studio and commit your changes, dependent Part Studios will also be regenerated.
+
+Try creating test cases for this feature. Where does the feature succeed? Where does it not do what you expect? How could the design be improved?
+
+Review
+In this tutorial, we've discussed how to:
+
+Create a new feature type
+Define definition parameters
+Filter for different kinds of geometry by EntityType and BodyType
+Modify geometry with operations
+Keep track of operations and features with hierarchical ids
+Get geometrical information from entities with evaluations
+Specify geometry with queries
+Update other tabs via commit
+Add code quickly with the autocomplete menu
+Navigate inserted code with autocomplete regions
+In the next tutorials, we will cover more FeatureScript topics while refactoring the way our slot feature is created and improving its behavior.
+
+Final feature code
+Included here is the final code written in this tutorial. Note that your FeatureScript version and Onshape Standard Library version may be different.
+
+FeatureScript 1890;
+import(path : "onshape/std/common.fs", version : "1890.0");
+
+annotation { "Feature Type Name" : "Slot" }
+export const slot = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        annotation { "Name" : "Slot path", "Filter" : EntityType.EDGE, "MaxNumberOfPicks" : 1 }
+        definition.slotPath is Query;
+
+        annotation { "Name" : "Part to cut", "Filter" : EntityType.BODY && BodyType.SOLID, "MaxNumberOfPicks" : 1 }
+        definition.partToCut is Query;
+
+        annotation { "Name" : "Width" }
+        isLength(definition.width, LENGTH_BOUNDS);
+    }
+    {
+        opExtrude(context, id + "extrude1", {
+               "entities" : definition.slotPath,
+               "direction" : evOwnerSketchPlane(context, {"entity" : definition.slotPath}).normal,
+               "endBound" : BoundingType.THROUGH_ALL,
+               "startBound" : BoundingType.THROUGH_ALL
+        });
+
+        opThicken(context, id + "thicken1", {
+               "entities" : qCreatedBy(id + "extrude1", EntityType.BODY),
+               "thickness1" : definition.width / 2,
+               "thickness2" : definition.width / 2
+        });
+
+        opDeleteBodies(context, id + "delete1", {
+               "entities" : qCreatedBy(id + "extrude1", EntityType.BODY)
+        });
+
+        opBoolean(context, id + "boolean1", {
+               "tools" : qCreatedBy(id + "thicken1", EntityType.BODY),
+               "targets" : definition.partToCut,
+               "operationType" : BooleanOperationType.SUBTRACTION
+        });
+
+    });
+
+    Add sketch geometry
+In this tutorial, we will rewrite the body of the slot feature created in the last tutorial. The new version will involve a sketch which creates more complex geometry.
+
+This tutorial will walk through how to:
+
+Robustly calculate the right coordinate system for sketching
+Create a sketch and add sketch entities
+Specify a sketch region to extrude and subtract
+We'll also discuss some core FeatureScript concepts along the way, like using variables, doing geometric calculation, debugging geometry, and diagnosing errors.
+
+Motivation
+Laser cut slots, like the ones made in the last tutorial, require very tight tolerances. The difference between a press fit too loose to hold together and a press fit too tight to assemble can be as little as ±0.005". When working with laser-cut materials, there is generally very low variability in the dimensions of the laser-cut profile (a well-focused beam's cut width can vary less 0.001" between jobs), but there will be high variability in the thickness of the material itself (high-quality 1/8" plywood, for example, can still vary in thickness by ±0.015").
+
+One way to increase the tolerance of this fit is to add geometry to the slot that compresses more readily and provides less friction than a flat wall, like the design below:
+
+Slot with added protrusions Slot protrusion outline
+On oversized material, these protrusions will compress slightly to allow the materials to slide together with much less friction than a standard slot. For undersized materials, these protrusions will compress less, but still provide a secure fit at both ends.
+
+Without FeatureScript, making many slots with geometry like this requires a lot of repetitive work. With FeatureScript, we can build this additional geometry inside the slot feature so it can automatically be a part of any slot we create.
+
+Add parameters to the precondition
+We'll start by adding two new parameters to our slot feature, asking the user:
+
+Do you want to add these bumps?
+If so, how big?
+At the end of the slot feature's precondition, add a boolean parameter named addBumps:
+
+annotation { "Name" : "Add bumps" }
+definition.addBumps is boolean;
+A conditional parameter (i.e. a parameter whose visibility is controlled by other parameters) can be defined inside the precondition using an if statement.
+
+Let's add a new parameter named bumpHeight, conditional on addBumps being true:
+
+if (definition.addBumps)
+{
+    annotation { "Name" : "Bump height" }
+    isLength(definition.bumpHeight, LENGTH_BOUNDS);
+}
+You can read more on conditional parameters in the specifying feature UI documentation.
+
+Modify UI defaults
+The UI default for a parameter controls what a user first sees in a dialog creating a new instance of this feature.
+
+For a boolean parameter, this default can be set in an annotation:
+
+annotation { "Name" : "Add bumps", "Default" : true }
+definition.addBumps is boolean;
+For a length parameter, setting the UI default is more involved, since we want to provide a nicely-rounded defaults for users who've set various default units.
+
+The current default is set through LENGTH_BOUNDS, the second parameter to the isLength predicate. To see how LENGTH_BOUNDS is defined, we can jump to definition by ctrl-clicking or cmd-clicking on the symbol:
+
+Jump to definition
+
+This will take you to the symbol definition in the version of the Onshape Standard Library imported by this Feature Studio. Standard library definition of LENGTH_BOUNDS
+
+The source code for the valueBounds module includes documentation inside of comments. To see the documentation nicely formatted on its own, you can read about the valueBounds module on the Standard Library documentation page.
+
+By either reading the source code, or reading the documentation for LengthBoundSpec, we determine that a way of fully customizing the defaults for a length is to define your own LengthBoundSpec.
+
+We can now define new bounds for our slot width and our bump height as constants outside the feature:
+
+FeatureScript 1890;
+import(path : "onshape/std/common.fs", version : "1890.0");
+
+export const SLOT_WIDTH_BOUNDS =
+{
+    (meter)      : [1e-5, 0.0025, 500],
+    (centimeter) : 0.25,
+    (millimeter) : 2.5,
+    (inch)       : 0.1,
+    (foot)       : 0.01,
+    (yard)       : 0.0025
+} as LengthBoundSpec;
+
+export const BUMP_HEIGHT_BOUNDS =
+{
+    (meter)      : [1e-5, 0.00025, 500],
+    (centimeter) : 0.025,
+    (millimeter) : 0.25,
+    (inch)       : 0.01,
+    (foot)       : 0.001,
+    (yard)       : 0.00025
+} as LengthBoundSpec;
+
+annotation { "Feature Type Name" : "Slot" }
+...
+...and use them as the bounds of our two length parameters:
+
+annotation { "Name" : "Width" }
+isLength(definition.width, SLOT_WIDTH_BOUNDS);
+annotation { "Name" : "Bump height" }
+isLength(definition.bumpHeight, BUMP_HEIGHT_BOUNDS);
+NOTE
+
+The constants SLOT_WIDTH_BOUNDS and BUMP_HEIGHT_BOUNDS are defined as top-level symbols, which can be used inside this Feature Studio. The export keyword also makes these symbols visible to any module that imports them. It is necessary to export in this case so that the Part Studio referencing this feature has the information needed to create the dialog.
+Narrow the slot path filter
+While we're here, we can modify the filter for the slot path to be more specific to prevent unwanted input.
+
+We know we need to extrude in the sketch normal direction, so we can filter out edges that aren't on sketches. We also know that a slot which isn't a line won't fit together with another planar part, so we can also filter out non-linear edges:
+
+annotation { "Name" : "Slot path", "Filter" : EntityType.EDGE && SketchObject.YES && GeometryType.LINE, "MaxNumberOfPicks" : 1 }
+definition.slotPath is Query;
+After these changes, the new dialog should look like the one below, with the "Bump height" parameter only appearing when "Add bumps" is checked.
+
+Slot dialog with Add bumps checked Slot dialog with Add bumps unchecked
+The full code for the new precondition (and bounds) should look as follows:
+
+export const SLOT_WIDTH_BOUNDS =
+{
+    (meter)      : [1e-5, 0.0025, 500],
+    (centimeter) : 0.25,
+    (millimeter) : 2.5,
+    (inch)       : 0.1,
+    (foot)       : 0.01,
+    (yard)       : 0.0025
+} as LengthBoundSpec;
+
+export const BUMP_HEIGHT_BOUNDS =
+{
+    (meter)      : [1e-5, 0.00025, 500],
+    (centimeter) : 0.025,
+    (millimeter) : 0.25,
+    (inch)       : 0.01,
+    (foot)       : 0.001,
+    (yard)       : 0.00025
+} as LengthBoundSpec;
+
+annotation { "Feature Type Name" : "Slot" }
+export const slot = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        annotation { "Name" : "Slot path", "Filter" : EntityType.EDGE && SketchObject.YES && GeometryType.LINE, "MaxNumberOfPicks" : 1 }
+        definition.slotPath is Query;
+
+        annotation { "Name" : "Part to cut", "Filter" : EntityType.BODY && BodyType.SOLID, "MaxNumberOfPicks" : 1 }
+        definition.partToCut is Query;
+
+        annotation { "Name" : "Width" }
+        isLength(definition.width, SLOT_WIDTH_BOUNDS);
+
+        annotation { "Name" : "Add bumps", "Default" : true }
+        definition.addBumps is boolean;
+
+        if (definition.addBumps)
+        {
+            annotation { "Name" : "Bump height" }
+            isLength(definition.bumpHeight, BUMP_HEIGHT_BOUNDS);
+        }
+    }
+...
+Calculate the sketch coordinate system
+The new geometry needed can't be created using thicken. Instead, we're going to create it using a sketch.
+
+To give ourselves a fresh start, let's begin by removing the old implementation of the Slot feature:
+
+    ...
+}
+{
+    opExtrude(context, id + "extrude1", {
+           "entities" : definition.slotPath,
+           "direction" : evOwnerSketchPlane(context, {"entity" : definition.slotPath}).normal,
+           "endBound" : BoundingType.THROUGH_ALL,
+           "startBound" : BoundingType.THROUGH_ALL
+    });
+
+    opThicken(context, id + "thicken1", {
+           "entities" : qCreatedBy(id + "extrude1", EntityType.BODY),
+           "thickness1" : definition.width / 2,
+           "thickness2" : definition.width / 2
+    });
+
+    opDeleteBodies(context, id + "delete1", {
+           "entities" : qCreatedBy(id + "extrude1", EntityType.BODY)
+    });
+
+    opBoolean(context, id + "boolean1", {
+           "tools" : qCreatedBy(id + "thicken1", EntityType.BODY),
+           "targets" : definition.partToCut,
+           "operationType" : BooleanOperationType.SUBTRACTION
+    });
+
+});
+To create this sketch properly, our first task is to create a cartesian coordinate system defining the position and orientation of the slot. We'll define this coordinate system such that its origin is on one end of the slot, its x-axis is along the slot path, and its z-axis is along the direction we want to extrude, like the one depicted below:
+
+Sketch coordinate system
+
+This coordinate system depends on three things: The two endpoints of the slot path, and the sketch plane. We will first evaluate the positions and orientations of these entities, then construct the coordinate system based on these positions.
+
+Query the line's endpoints
+A sketched line will always be its own body in the context. We can find the endpoints on this body with qAdjacent, which can query for vertices of a given type that are (topologically) adjacent to the slotPath.
+
+We'll store this Query as a variable named endPoints:
+
+var endPoints is Query = qAdjacent(definition.slotPath, AdjacencyType.VERTEX, EntityType.VERTEX);
+NOTE
+
+A variable in FeatureScript can optionally be defined with a type constraint (like "is Query" above). This will cause a runtime error if that variable is ever set to a value which does not match that type constraint.
+The type constraint is not required, but it can make intent clearer and help find errors sooner.
+
+To test that we've queried for the right thing, we can use the debug function. When passed a query, debug will highlight all entities matching the query in red.
+
+debug(context, endPoints);
+Debugged endpoints
+
+NOTE
+
+The debug function will ONLY highlight entities when you open the feature dialog of the feature being debugged.
+If you open the FeatureScript notices flyout, you should see a line telling you how many entities of each EntityType that query resolved to (in this case, two vertices).
+
+Featurescript notices no error icon Debugged endpoints output
+
+Once the debugged output matches the output you expect, you can either delete the debug line, or just comment it out (in case you need it for future debugging).
+
+You can comment any line with the shortcut Ctrl + / or Cmd + /.
+
+// debug(context, endPoints);
+From here on, any time a call to debug or println is made, you can assume that you should remove or comment out that call in the final version of the feature.
+
+Evaluate the endpoint positions
+To find the positions of these two endpoints, we can use evVertexPoint. To specify the individual entries of the query, we can use qNthElement.
+
+var startPosition is Vector = evVertexPoint(context, {
+        "vertex" : qNthElement(endPoints, 0)
+});
+var endPosition is Vector = evVertexPoint(context, {
+        "vertex" : qNthElement(endPoints, 1)
+});
+NOTE
+
+FeatureScript has two completely separate ways of representing entities and geometry:
+Queries, like endPoints are objects which specify criteria for finding a particular entity or set of entities in the Part Studio. These are just specifications, and they contain no information about the geometric or topological properties of any entities. Depending on the context it is evaluated in, a Query may resolve to zero, one, or many entities.
+
+Geometric objects, like endPosition, contain data about geometric positions and orientations (including Vectors, Planes, CoordSystems, and more). These are just data, and are not contextually associated with any entities in the Part Studio.
+
+This design gives Onshape Part Studios and features the robust tools needed to maintain fully parametric references.
+
+To get geometric information from a query, use an evaluation function, found in the evaluate module.
+
+NOTE
+
+qNthElement, used above, is a function which returns a Query for one of the entities that another Query evaluates to.
+In general, the ordering of the elements inside a Query is not predictable, so care should be taken to ensure that qNthElement is only used when any ordering of entities will work. In our case, the resulting slot is symmetric, so we are content to define it starting on either end of the line.
+
+A Vector just an array of numbers (in this case, with units) which behaves naturally under operators like + and *. Debugging one of the resulting Vectors will print its exact location, in meters, and highlight that point in the Part Studio:
+
+debug(context, startPosition);
+Debugged vertex text Debugged vertex
+
+Calculate the axis directions
+The axes of our coordinate system will be specified as 3D directions – that is, unitless vectors of length 1.
+
+The X-axis can be calculated by normalizing a vector pointing from the startPosition to endPosition:
+
+var xDirection is Vector = normalize(endPosition - startPosition);
+NOTE
+
+We could have also gotten the X direction from the slotPath, by calling evLine or evEdgeTangentLine. As a rule of thumb, it's better practice to calculate geometric data using information you already have than to call more evaluate functions. This prevents bugs that can occur in edge cases where two seemingly consistent evaluations disagree with each other.
+The Z-axis can be calculated by evaluating the sketch plane of the slot path, and taking its normal:
+
+var zDirection is Vector = evOwnerSketchPlane(context, {
+        "entity" : definition.slotPath
+}).normal;
+Create a coordinate system and a sketch plane
+A CoordSystem stores three things: an origin position, a direction for the X-axis, and a perpendicular direction for its Z-axis (the Y-axis can be inferred from the other two axes).
+
+Thus, we can create our desired CoordSystem with a single function call:
+
+var cSys is CoordSystem = coordSystem(startPosition, xDirection, zDirection);
+debug(context, cSys);
+Debugged coordinate system text Debugged coordinate system
+
+A sketch plane specifies the same information as a coordinate system (the origin and X-direction are specified too, so that sketch entities may be placed accurately). Thus, we can also create a plane in our CoordSystem with a single function call.
+
+var sketchPlane is Plane = plane(cSys);
+The full code to create a coordinate system is below:
+
+var endPoints is Query = qAdjacent(definition.slotPath, AdjacencyType.VERTEX, EntityType.VERTEX);
+
+var startPosition is Vector = evVertexPoint(context, {
+        "vertex" : qNthElement(endPoints, 0)
+});
+var endPosition is Vector = evVertexPoint(context, {
+        "vertex" : qNthElement(endPoints, 1)
+});
+
+var xDirection is Vector = normalize(endPosition - startPosition);
+var zDirection is Vector = evOwnerSketchPlane(context, {
+        "entity" : definition.slotPath
+}).normal;
+
+var cSys is CoordSystem = coordSystem(startPosition, xDirection, zDirection);
+var sketchPlane is Plane = plane(cSys);
+Create a sketch
+Sketching in FeatureScript always involves three parts: creating a sketch, adding entities to the sketch, and solving the sketch.
+
+A snippet completing these three steps can be found in the sketch snippets menu, or by simply typing "sketch": Sketch snippet
+
+This will insert the following code:
+
+var sketch1 = newSketch(context, id + "sketch1", {
+        "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+});
+// Create sketch entities here
+skSolve(sketch1);
+Rather than sketching on the top plane (the autocompleted default), let's create our sketch on the sketchPlane we just defined:
+
+var sketch1 = newSketch(context, id + "sketch1", {
+        "sketchPlane" : sketchPlane
+});
+After committing this change, if we look at the Part Studio, we'll see the slot feature turn red in the feature tree, indicating an error has occurred. Feature error tooltip
+
+Diagnose a runtime error
+In the FeatureScript notices menu, you can see all errors and warnings displayed. In this case, the issue is a precondition failure:
+
+newSketch precondition error
+
+NOTE
+
+Some errors, like parse errors and mistyped variable names, are detectable inside the Feature Studio without ever running the code. Runtime errors, like dynamic type mismatches or dividing by zero, are only found when your code is run inside a Part Studio.
+Some runtime errors (like this one) occur every time a feature runs, but many will only occur in certain contexts with certain inputs. It's generally good practice to maintain a set of Part Studios in the same document that test common cases and edge cases for your feature as you develop. This increases the odds of finding errors and fixing them early.
+
+A precondition failure means that parameters to a function (in this case, the newSketch function) have failed to match that function's precondition.
+
+You can see the line of the precondition that failed in parenthesis: (value.sketchPlane is Query).
+
+Another way to get information about the input expected by a function is to hover your mouse over the function name. Documentation will pop up giving you detailed information about what that function does, and what parameters it expects.
+
+newSketch doc on hover
+
+In both the precondition failure message and the hover documentation, we can see that the field sketchPlane on the third map parameter is expected to be a Query. In the hover documentation, we can also see that if we want to sketch on a Plane, we can call newSketchOnPlane instead.
+
+Sure enough, we fix this error by changing the function to newSketchOnPlane.
+
+var sketch1 = newSketchOnPlane(context, id + "sketch1", {
+        "sketchPlane" : sketchPlane
+});
+Sketch a rectangle
+Code creating sketch entities will be placed between the sketch creation and the sketch solve. The first entities we need in the sketch will be a rectangle, which will be as long as the slot path.
+
+Let's first define a variable which represents the slot length, calculated as the distance between startPosition and endPosition.
+
+var sketch1 = newSketchOnPlane(context, id + "sketch1", {
+        "sketchPlane" : sketchPlane
+});
+var slotLength is ValueWithUnits = norm(endPosition - startPosition);
+
+skSolve(sketch1);
+On the line after defining the variable, we can insert code calling skRectangle by using autocomplete, or by using the sketch snippets menu.
+
+skRectangle(sketch1, "rectangle1", {
+        "firstCorner" : vector(0, 0) * inch,
+        "secondCorner" : vector(1, 1) * inch
+});
+NOTE
+
+Every sketch operation has a sketch id (here, it's "rectangle1"). Unlike feature operation Ids, a sketch id is just a plain string. A sketch id needs to be unique within a sketch.
+The vectors positioning the corners of the rectangle are 2D length vectors, measured in the coordinate system of the sketch we provided (with the origin at one end of the slot, and the x-axis along the slot).
+
+This means we can easily calculate the precise coordinates needed for the rectangle using the slot width and length.
+
+skRectangle(sketch1, "rectangle1", {
+        "firstCorner" :  vector(0 * inch,    definition.width / 2),
+        "secondCorner" : vector(slotLength, -definition.width / 2)
+});
+This will add a sketch rectangle precisely along your slot path. sketch rectangle
+
+Sketch slot bumps
+We should add bumps to the sketch if (and only if) the user has specified they want bumps.
+
+Insert the autocompletion for, or simply type out, an if statement conditional on the definition.addBumps boolean parameter:
+
+if (definition.addBumps)
+{
+
+}
+NOTE
+
+In a FeatureScript if statement, the condition inside parenthesis must evaluate to a boolean. Otherwise, an error is thrown.
+Inside the if statement, we can create variables that will help us calculate the positions of arcs that will create the bumps we need.
+
+var bumpDistance   = slotLength / 10;          // Distance from end of slot to start of bump
+var bumpWidth      = slotLength / 5;
+var bumpHeight     = definition.bumpHeight;
+NOTE
+
+Like other control structures in FeatureScript, an if statement usually uses a statement block, delimited inside curly braces {}. Variables declared inside a statement block can only be used inside that statement block.
+We want to create arcs on both sides of our slot. To write less code, we'll use a for loop.
+
+for (var side in [-1, 1])
+{
+
+}
+NOTE
+
+A FeatureScript for loop can be declared with the syntax above (to iterate through an array or map), or with the following, more traditional syntax: for (var i = 0; i < count; i += 1)
+Inside the for loop, we can define two arcs, one for each end of the slot, using skArc. The start, middle, and end points can be calculated from the variables defined above.
+
+skArc(sketch1, "arc_0_" ~ side, {
+        "start" : vector(bumpDistance, (definition.width / 2) * side),
+        "mid" : vector(bumpDistance + bumpWidth / 2, (definition.width / 2 - bumpHeight) * side),
+        "end" : vector(bumpDistance + bumpWidth, (definition.width / 2) * side)
+});
+
+skArc(sketch1, "arc_1_" ~ side, {
+        "start" : vector(slotLength - bumpDistance, (definition.width / 2) * side),
+        "mid" : vector(slotLength - bumpDistance - bumpWidth / 2, (definition.width / 2 - bumpHeight) * side),
+        "end" : vector(slotLength - bumpDistance - bumpWidth, (definition.width / 2) * side)
+});
+NOTE
+
+In order to ensure unique sketch ids for both iterations of the for loop, the skArc ids were both concatenated with the iteration variable side.
+The ~ operator will always perform string concatenation, converting the values on either side to a string representation if necessary.
+
+CHALLENGE
+
+The two calls to skArc above contain a lot of nearly redundant calculations. Try rewriting this code to use two nested for loops, and only a single call to skArc.
+With the arcs added, you should now see the full sketch in your Part Studio.
+
+Sketch with bumps
+
+The full code for creating the sketch is below:
+
+var sketch1 = newSketchOnPlane(context, id + "sketch1", {
+        "sketchPlane" : sketchPlane
+});
+
+var slotLength is ValueWithUnits = norm(endPosition - startPosition);
+skRectangle(sketch1, "rectangle1", {
+        "firstCorner" :  vector(0 * inch,    definition.width / 2),
+        "secondCorner" : vector(slotLength, -definition.width / 2)
+});
+
+if (definition.addBumps)
+{
+    var bumpDistance = slotLength / 10;          // Distance from end of slot to start of bump
+    var bumpWidth    = slotLength / 5;
+    var bumpHeight   = definition.bumpHeight;
+
+    for (var side in [-1, 1])
+    {
+        skArc(sketch1, "arc_0_" ~ side, {
+                "start" : vector(bumpDistance, (definition.width / 2) * side),
+                "mid" : vector(bumpDistance + bumpWidth / 2, (definition.width / 2 - bumpHeight) * side),
+                "end" : vector(bumpDistance + bumpWidth, (definition.width / 2) * side)
+        });
+
+        skArc(sketch1, "arc_1_" ~ side, {
+                "start" : vector(slotLength - bumpDistance, (definition.width / 2) * side),
+                "mid" : vector(slotLength - bumpDistance - bumpWidth / 2, (definition.width / 2 - bumpHeight) * side),
+                "end" : vector(slotLength - bumpDistance - bumpWidth, (definition.width / 2) * side)
+        });
+    }
+}
+skSolve(sketch1);
+Extrude a slot from the sketch
+The sketch we've created now has five sketch regions. The region we want to extrude is large region in the center. We can query for just that region using qContainsPoint.
+
+var regionToExtrude = qContainsPoint(qSketchRegion(id + "sketch1"), cSys.origin);
+debug(context, regionToExtrude);
+NOTE
+
+The above query can be rewritten as qSketchRegion(id + "sketch1")->qContainsPoint(cSys.origin). The -> inserts the sketch region query as the first argument of qContainsPoint. In this way, nested queries can be unpacked into an easier-to-read format.
+Debugged sketch region
+
+We can now extrude the sketch region using opExtrude, just like in the last tutorial.
+
+opExtrude(context, id + "extrude1", {
+      "entities" : regionToExtrude,
+      "direction" : zDirection,
+      "endBound" : BoundingType.THROUGH_ALL,
+      "startBound" : BoundingType.THROUGH_ALL
+});
+Extrude the sketch region
+
+An opBoolean will subtract the body:
+
+opBoolean(context, id + "boolean1", {
+      "tools" : qCreatedBy(id + "extrude1", EntityType.BODY),
+      "targets" : definition.partToCut,
+      "operationType" : BooleanOperationType.SUBTRACTION
+});
+Subtract the extruded region
+
+Finally, to clean up, we can delete the sketch bodies used to create the slot.
+
+opDeleteBodies(context, id + "delete1", {
+      "entities" : qCreatedBy(id + "sketch1", EntityType.BODY)
+});
+Delete sketch bodies
+
+We can use this new slot feature anywhere we used the old feature, and the user now has the option of adding bumps to the slot.
+
+Multiple slots with bumps
+
+Review
+In this tutorial, we've discussed how to:
+
+Add conditional parameters to the precondition
+Specify a parameter's UI default
+Create FeatureScript variables
+Do math with FeatureScript vectors
+Use a coordinate system to position geometry
+Create a sketch and add sketch entities
+Debug queries and geometric data
+Diagnose runtime errors
+Read hover documentation
+Use Ctrl-click to jump to definition
+Final feature code
+Included here is the final code written in this tutorial. Note that your FeatureScript version and Onshape Standard Library version may be different.
+
+FeatureScript 1890;
+import(path : "onshape/std/common.fs", version : "1890.0");
+
+export const SLOT_WIDTH_BOUNDS =
+{
+    (meter)      : [1e-5, 0.0025, 500],
+    (centimeter) : 0.25,
+    (millimeter) : 2.5,
+    (inch)       : 0.1,
+    (foot)       : 0.01,
+    (yard)       : 0.0025
+} as LengthBoundSpec;
+
+export const BUMP_HEIGHT_BOUNDS =
+{
+    (meter)      : [1e-5, 0.00025, 500],
+    (centimeter) : 0.025,
+    (millimeter) : 0.25,
+    (inch)       : 0.01,
+    (foot)       : 0.001,
+    (yard)       : 0.00025
+} as LengthBoundSpec;
+
+annotation { "Feature Type Name" : "Slot" }
+export const slot = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        annotation { "Name" : "Slot path", "Filter" : EntityType.EDGE && SketchObject.YES && GeometryType.LINE, "MaxNumberOfPicks" : 1 }
+        definition.slotPath is Query;
+
+        annotation { "Name" : "Part to cut", "Filter" : EntityType.BODY && BodyType.SOLID, "MaxNumberOfPicks" : 1 }
+        definition.partToCut is Query;
+
+        annotation { "Name" : "Width" }
+        isLength(definition.width, SLOT_WIDTH_BOUNDS);
+
+        annotation { "Name" : "Add bumps", "Default" : true }
+        definition.addBumps is boolean;
+
+        if (definition.addBumps)
+        {
+            annotation { "Name" : "Bump height" }
+            isLength(definition.bumpHeight, BUMP_HEIGHT_BOUNDS);
+        }
+    }
+    {
+        var endPoints is Query = qAdjacent(definition.slotPath, AdjacencyType.VERTEX, EntityType.VERTEX);
+        // debug(context, endPoints);
+
+        var startPosition is Vector = evVertexPoint(context, {
+                "vertex" : qNthElement(endPoints, 0)
+        });
+        var endPosition is Vector = evVertexPoint(context, {
+                "vertex" : qNthElement(endPoints, 1)
+        });
+        // debug(context, startPosition);
+
+        var xDirection is Vector = normalize(endPosition - startPosition);
+        var zDirection is Vector = evOwnerSketchPlane(context, {
+                "entity" : definition.slotPath
+        }).normal;
+
+        var cSys is CoordSystem = coordSystem(startPosition, xDirection, zDirection);
+        // debug(context, cSys);
+
+        var sketchPlane is Plane = plane(cSys);
+
+        var sketch1 = newSketchOnPlane(context, id + "sketch1", {
+                "sketchPlane" : sketchPlane
+        });
+
+        var slotLength is ValueWithUnits = norm(endPosition - startPosition);
+        skRectangle(sketch1, "rectangle1", {
+                "firstCorner" :  vector(0 * inch,    definition.width / 2),
+                "secondCorner" : vector(slotLength, -definition.width / 2)
+        });
+
+        if (definition.addBumps)
+        {
+            var bumpDistance = slotLength / 10;          // Distance from end of slot to start of bump
+            var bumpWidth    = slotLength / 5;
+            var bumpHeight   = definition.bumpHeight;
+
+            for (var side in [-1, 1])
+            {
+                skArc(sketch1, "arc_0_" ~ side, {
+                        "start" : vector(bumpDistance, (definition.width / 2) * side),
+                        "mid" : vector(bumpDistance + bumpWidth / 2, (definition.width / 2 - bumpHeight) * side),
+                        "end" : vector(bumpDistance + bumpWidth, (definition.width / 2) * side)
+                });
+
+                skArc(sketch1, "arc_1_" ~ side, {
+                        "start" : vector(slotLength - bumpDistance, (definition.width / 2) * side),
+                        "mid" : vector(slotLength - bumpDistance - bumpWidth / 2, (definition.width / 2 - bumpHeight) * side),
+                        "end" : vector(slotLength - bumpDistance - bumpWidth, (definition.width / 2) * side)
+                });
+            }
+        }
+        skSolve(sketch1);
+
+        var regionToExtrude = qContainsPoint(qSketchRegion(id + "sketch1"), cSys.origin);
+        debug(context, regionToExtrude);
+
+        opExtrude(context, id + "extrude1", {
+              "entities" : regionToExtrude,
+              "direction" : zDirection,
+              "endBound" : BoundingType.THROUGH_ALL,
+              "startBound" : BoundingType.THROUGH_ALL
+        });
+
+        opBoolean(context, id + "boolean1", {
+              "tools" : qCreatedBy(id + "extrude1", EntityType.BODY),
+              "targets" : definition.partToCut,
+              "operationType" : BooleanOperationType.SUBTRACTION
+        });
+
+        opDeleteBodies(context, id + "delete1", {
+              "entities" : qCreatedBy(id + "sketch1", EntityType.BODY)
+        });
+    });
+
+    Introduction
+FeatureScript in Onshape
+Onshape's Part Studios are written in FeatureScript. User actions that modify a Part Studio, under the hood, actually modify a representation of the Part Studio consisting of FeatureScript code.
+
+You can see the underlying FeatureScript of any Part Studio by right-clicking its tab and clicking "Show code": FeatureScript in Onshape
+
+The individual components of a Part Studio's FeatureScript are familiar concepts for programmers of other languages:
+
+A feature type is a FeatureScript function.
+The feature types in Onshape's default toolbar (like extrude and helix) are defined as functions in the Onshape Standard Library.
+Custom feature types are defined in Feature Studios.
+A feature in the feature tree is a function call.
+Feature parameters are contained in the function's arguments.
+A Part Studio defines a build function, containing a function call for every feature.
+The geometry of a Part Studio is the output of the build function.
+Part Studio regeneration, triggered when features are updated, is execution of the build function.
+The rollback bar is a return statement in the build function, causing subsequent features not to run.
+In addition to custom features, FeatureScript can be used to define custom tables as functions that compute the data in the table by executing once a Part Studio has finished regenerating.
+
+Feature Studios
+Feature types (along with other user-defined functions, types, etc.) are defined in Feature Studios within Onshape documents. Onshape's standard features are defined in the Feature Studios of a public document, where their source code may be viewed.
+
+Feature Studios, Part Studios, and many types of data tabs in Onshape have a FeatureScript representation. These tabs, called "modules", can be imported into Feature Studios, either in the same document or from versions of linked documents. This consistent interface makes code and data reuse simple and reliable.
+
+One consequence of Feature Studios living inside Onshape documents is that they share the version control and sharing systems used by the rest of Onshape, complete with permissions, versions, branches, and a full history of edits.
+
+Feature Studios are implemented based on the Ace editor and many Ace shortcuts work in a Feature Studio.
+
+Language fundamentals
+FeatureScript's basic syntax is designed to look and feel familiar to programmers of other C-family languages like C++, JavaScript, or Java. The language is fully whitespace insensitive, and FeatureScript statements always end in a semicolon. /* block comments */ and // end of line comments can be added in the standard way.
+
+Determinism is a core principle of FeatureScript. At Onshape we believe that models must regenerate the same way every time, everywhere. Thus, FeatureScript has no concept of undefined behavior, and execution cannot be influenced by external input, time, or randomness.
+
+FeatureScript discourages hidden state and shared references. Value semantics are used everywhere, and when references are needed, a distinctive syntax (using boxes) makes it obvious. Assignment, argument passing, and function return values all behave as if making deep copies.
+
+Clean geometric calculation
+FeatureScript is strongly typed and dynamically typed, and overloads for functions and operators can be cleanly defined for each FeatureScript type.
+
+The Standard Library defines natural overloads for operators (like + and *) on geometric types (like Vector and Transform). This makes calculations involving these types simple and readable:
+
+var v is Vector = vector(1, 2) + vector(3, 4);
+var transformedPoint = transform2 * transform1 * originalPoint;
+FeatureScript is also a natural fit for working with units. Operator overloads are defined to create a ValueWithUnits:
+
+const width is ValueWithUnits = 1.5 * inch;
+const angle is ValueWithUnits = 30 * degree;
+const area  is ValueWithUnits = 12 * centimeter^2;
+These values know their own dimensionality (length, angle, etc.), but don't differentiate unit systems (like meters vs. inches) making 1 * meter equal to and indistinguishable from 1000 * millimeter.
+
+Overloads on ValueWithUnits make math with units straightforward:
+
+var squareArea = (3 * meter + 3 * inch)^2;                              // Has area units
+
+var pendulumPeriod = 2 * PI * sqrt(armLength / (9.8 * meter/second^2)); // Has time units
+
+var numberOfBricks = floor(wallLength / brickLength);                   // Has no units
+
+var nonsense = (3 * meter) + (3 * degree);                              // Throws an error from unit mismatch
+Values with units also play nicely with vectors and transforms. The code below asserts that a point transformed by rotation around the z-axis is equal to the same point constructed trigonometrically:
+
+const start is Vector = vector(2, 0, 0) * inch;
+const zAxis is Line   = line(vector(0, 0, 0) * inch, vector(0, 0, 1));
+const end   is Vector = rotationAround(zAxis, 30 * degree) * start;
+
+const goal  is Vector = vector(cos(30 * degree), sin(30 * degree), 0) * (2 * inch);
+
+println(tolerantEquals(end, goal)); // Prints "true"
+For more on units, vectors, geometry, and other math in FeatureScript, see the math section of the Standard Library documentation.
+
+Defining feature types
+Features are the fundamental unit of CAD, and they are also the fundamental unit of FeatureScript. The FeatureScript inside a feature type can encompass anything from attaching some commonly used geometry, to wrapping one of Onshape's features in a more convenient interface, to generating a full part in one feature.
+
+A simple example of a feature type definition is below:
+
+annotation { "Feature Type Name" : "Fillet Everything" }
+export const filletEverything = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        annotation { "Name" : "Fillet radius" }
+        isLength(definition.filletRadius, BLEND_BOUNDS);
+    }
+    {
+        opFillet(context, id + "fillet1", {
+                "entities" : qBodyType(qEverything(EntityType.EDGE), BodyType.SOLID),
+                "radius" : definition.filletRadius
+        });
+    });
+The input to this feature type is defined in the precondition block of code, which defines a one-dimensional length parameter named "Fillet radius".
+
+The behavior of the feature is defined in the bottom block of code. The statement inside that block calls the opFillet operation (the same one used in Onshape's fillet feature). The radius of the fillet is set to the filletRadius provided by the user. The entities to fillet are defined with a Query for every edge in the Part Studio.
+
+Fillet everything at end of feature tree
+
+The FeatureScript inside a custom feature gets executed as part of the Part Studio's regeneration. This means the code inside the feature type function will run for every instance of the feature, every time its context or its definition changes, including:
+
+When the feature is first added.
+When one of its definition's parameters (i.e. filletRadius) gets updated.
+When any upstream feature is modified, deleted, or suppressed
+When the rollback bar moves from before to after the feature
+Moving the Fillet Everything feature up in the feature tree will cause it to fillet only the edges which were defined when the Fillet Everything feature was created: Fillet everything before hole
+
+Suppressing an extrude above the Fillet Everything feature (and thus removing edges) notably will NOT cause the Fillet Everything feature to break with an error like "missing edges". This is because no explicit references to the edges are passed into or stored by the feature. Rather, the feature reevaluates the edge Query every time the feature is run.
+
+Feature UI
+The user interface to both custom and standard features is a feature dialog. This page describes methods to create the inputs to these feature dialogs, and two alternative ways of updating the parameters dynamically.
+
+Defining a feature dialog
+Onshape creates the feature dialog by doing a static analysis (rather than an execution) of the feature declaration, primarily of the precondition. If the feature declaration does not match the allowed form, warnings are reported and the feature is not made available to Part Studios. A minimal valid feature declaration is:
+
+annotation { "Feature Type Name" : "Fancy Fillet" /* May have additional options */}
+export const fancyFillet = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        // Parameter specifications go here
+    }
+    {
+        // Feature Body
+    });
+This declaration can be easily extended in three places: The feature annotation, the feature precondition, and the feature body.
+
+Feature annotations
+A constant needs a "Feature Type Name" to be processed as a feature. Additionally, the following other fields can optionally be specified in the annotation map (with strings or arrays of strings):
+
+"Manipulator Change Function": Name of the function to be called whenever a manipulator that this feature created is moved. See below.
+"Editing Logic Function": Name of the function to be called whenever the user changes this feature definition. See below.
+"Filter Selector": An array of strings used to find this feature in the feature list, when input as search terms after a colon. For example, if a feature specifies "Filter Selector" : ["foo", "bar"], then entering :foo or :bar in the feature list filter will show the feature.
+"Feature Name Template": A template for naming new features, replacing the default of using the Feature Type Name. See variable.fs for an example.
+"Tooltip Template": A template for feature tooltips, using the same syntax as the Feature Type Name. See variable.fs for an example.
+"UIHint": Additional UI options, such as UIHint.NO_PREVIEW_PROVIDED, which prevents the preview slider from appearing.
+”Feature Type Description”: A description of what the feature does and how to use it, to be displayed in feature tooltips and the “Search tools” panel.
+"Icon": Anicon to display for the feature.
+"Description Image": A JPG, PNG, or SVG file to display as the description image for the feature.
+Feature parameters
+The parameter specification simultaneously serves as a validity check for the feature and a description of the UI for inputting that parameter. Any parameter specification may be annotated with a "Name", specifying the user-facing name of the parameter.
+
+Parameter specifications may be factored out into predicates (e.g. usages of booleanStepScopePredicate in std). Parameters may also be made conditional by putting them in if statements.
+
+Code snippets for the parameter specifications described in this section are available inside a Feature Studio in the parameter snippets menu:
+
+Parameter snippets menu
+
+Booleans
+The specification of a boolean parameter in the precondition uses the is operator on the indicated definition field:
+
+annotation { "Name" : "My Boolean", "Default" : true }
+definition.myBoolean is boolean;
+ Boolean in feature dialog
+Boolean parameters are rendered as a checkbox by default, though this may be changed via UIHint. The "Default" field is optional and will be false if unspecified.
+
+Strings
+A string parameter is specified similarly:
+
+annotation { "Name" : "My String", "Default" : "My default value" }
+definition.myString is string;
+ String in feature dialog
+This creates a text box, whose input can be any FeatureScript string. The "Default" field is optional and will be empty if unspecified.
+
+To set limits on the number of characters allowed, the "MaxLength" and "MinLength" annotation fields may be used.
+
+Enums
+An enum parameter is specified using the is expression and must refer to an enum that this module exports. Each individual enumeration value may have a user-visible "Name" annotation:
+
+export enum MyOption
+{
+    annotation { "Name" : "Option One" }
+    ONE,
+    annotation { "Name" : "Option Two" }
+    TWO
+}
+...
+annotation { "Name" : "My Enum" }
+definition.myEnum is MyOption;
+ Enum in feature dialog
+By default, an enum parameter is rendered as a dropdown menu with an option for every enum value, though this may be changed by providing a UIHint. For instance, UIHint.HORIZONTAL_ENUM will display the enum values as a group of tabs.
+
+Any of the following fields can be specified in the annotation map of an enum parameter definition:
+
+"Name": A user-visible name for the parameter.
+"Default": The name of the value that should be the default. If unspecified, the first value will be used.
+"Icon": An icon to be displayed alongside the parameter.
+"UIHint": Additional UI options.
+On the enum itself, each value may be annotated with one or more of the following:
+
+"Name": A user-visible name for the value.
+"Icon": An icon to be displayed alongside the value.
+"Hidden": If true, the value will be hidden from end users. This can be used to hide a value that is no longer supported, for example.
+Quantities
+A quantity parameter represents a value with units. For instance, a one-dimensional length parameter may be specified with an isLength predicate:
+
+annotation { "Name" : "My Length" }
+isLength(definition.myLength, LENGTH_BOUNDS);
+ Length in feature dialog
+A quantity is rendered as a text box into which a number, a number with units, or a mathematical expression may be typed.
+
+We currently support the following quantity and predicates to specify them:
+
+Length: isLength
+Angle: isAngle
+Integer: isInteger
+Real: isReal
+Anything: isAnything
+isAnything allows any expression with any units (see below) or even any FeatureScript type.
+
+The other predicates require a bounds argument which specifies both the bounds and the default value. The value bounds module defines several common quantity bounds, but you can also define custom value bounds inline. For example, the following predicate specifies a default length of 1.75 inches:
+
+annotation { "Name" : "My Length" }
+isLength(definition.myLength, { (inch) : [ 0, 1.75, 10000 ] } as LengthBoundSpec);
+A quantity parameter can be annotated with an icon.
+
+Parameter expressions
+Any time a feature requires user-specified parameters, it is also possible to enter an expression. For example, all of the following expressions can be typed directly into the entry field for a numeric parameter:
+
+6
+22/7 mm
+sqrt(1 + sin(61deg)) / 8
+(round(#myWidth, .1mm) + 2 inches) (assuming a variable named myWidth has been created)
+See the FeatureScript math module for a list of all defined mathematical functions. For more details on numeric parameter expressions, including a list of accepted unit abbreviations, see the help documentation.
+
+Parameter expressions are evaluated in two steps: First, they are pre-processed to convert units and variables to their true values. In particular, unit abbreviations such as 2 in are expanded to 2 * inch, and variables such as #foo are replaced by calls to getVariable("foo"). Then, the resulting expression is directly executed as FeatureScript. As a result, any valid FeatureScript expression can be entered into a parameter field (as long as the expression evaluates to the correct type).
+
+Here are some advanced examples of FeatureScript functionality in parameter expressions:
+
+Array indexing: [3, 1, 4, 1, 5][#index]
+Ternary operators: (#myNum % 2 == 0) ? #myNum / 2 : 3 * #myNum + 1
+Lambda functions: (function(x) { return (x^2 + 1) in; })(1)
+Vector math: squaredNorm(cross(vector(1, 1, 2) * meter, vector(3, 5, 8) * meter))
+An isAnything precondition accepts any parameter expression, regardless of its type. This can be used to enter values such as booleans and strings into custom features as expressions (which can refer to variables), or to enter other types such as vectors or lambda functions. The default value of an isAnything precondition will be placed into the parameter field, and therefore must be a string whose contents evaluate to a valid parameter expression, such as "57", "&quot;My string&quot;", "true", or "function(){ return &quot;Hello, world!&quot; }".
+
+Queries
+When the user selects entities (vertices, edges, faces, and bodies), they are passed to the feature as a query. The minimal query parameter specification is definition.myParameter is Query;. There are two query-specific annotations allowed that restrict what can be selected:
+
+"MaxNumberOfPicks", which must be an integer literal
+"Filter", which must be an expression as described below
+Note that the feature should not rely on the queries satisfying the filter or evaluating to at most MaxNumberOfPicks because changes to upstream features may change the type of the selected entity or turn a single selected entity into multiple.
+
+The "Filter" expression can contain values of the following enums:
+
+BodyType
+EntityType
+GeometryType
+ConstructionObject
+AllowMeshGeometry
+AllowFlattenedGeometry
+ActiveSheetMetal
+SheetMetalDefinitionEntityType
+ModifiableEntityOnly
+AllowEdgePoint
+SketchObject
+EdgeTopology
+QueryFilterCompound
+These values may be combined using &&, ||, and !, even though such an expression could not be evaluated outside of an annotation. For example, to allow only at most two sketch circles or arcs, use:
+
+annotation { "Name" : "Round things",
+             "Filter" : (GeometryType.CIRCLE || GeometryType.ARC) && SketchObject.YES,
+             "MaxNumberOfPicks" : 2 }
+definition.roundThings is Query;
+Query in feature dialog
+These filters are only applied on the client during selection; because of changes to features earlier in the feature list, the actual query passed in may evaluate to entities that do not actually pass the filters, so it is up to the feature author to check or filter the input inside the feature body. Some filters like QueryFilterCompound do not have corresponding queries.
+
+References
+Custom features often need to use geometry or data contained in other Onshape tabs. Reference parameters allow a user to select a Part Studio, image, or CSV tab to reference.
+
+Like all Onshape references, if this other tab is in the same document, the feature will be kept up-to-date with any changes to the other tab. If the other tab is in another document, its data is kept at a version, and the feature displays a link icon which allows the user to update that version if desired.
+
+annotation { "Name" : "Part Studio", "Filter" : PartStudioItemType.SOLID || PartStudioItemType.ENTIRE_PART_STUDIO }
+definition.myPartStudio is PartStudioData;
+Part Studio reference in feature dialog
+A detailed overview of all types of reference parameters can be found in the FeatureScript imports documentation.
+
+Example features using reference parameters can be found in the Reference parameter examples document.
+
+Lookup tables
+A lookup table is a UI built around specifying a parameter (or set of parameters) though a decision tree. This is similar to selecting an option from an enum value, but each option can have additional sub-options, each sub-option may have sub-sub-options, etc. A typical use is navigating to a standard size, which you can try out in Onshape's Hole feature.
+
+An example of a feature using a lookup table is below:
+
+const ml is ValueWithUnits = centimeter ^ 3;
+const oz is ValueWithUnits = 29.5735 * ml;
+
+export const sizeTable = {
+        "name" : "region",
+        "displayName" : "Region",
+        "default" : "EU",
+        "entries" : {
+            "EU" : {
+                "name" : "size",
+                "displayName" : "Size",
+                "default" : "Medium",
+                "entries" : {
+                    "Small" : 250 * ml,
+                    "Medium" : 350 * ml,
+                    "Large" : 500 * ml
+                }
+            },
+            "US" : {
+                "name" : "size",
+                "displayName" : "Size",
+                "default" : "Large",
+                "entries" : {
+                    "Medium" : 16 * oz,
+                    "Large" : 32 * oz,
+                    "Supersize" : 64 * oz
+                }
+            }
+        }
+    };
+
+annotation { "Feature Type Name" : "Soda" }
+export const soda = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        annotation { "Name" : "Soda size", "Lookup Table" : sizeTable }
+        definition.size is LookupTablePath;
+    }
+    {
+        var size is ValueWithUnits = getLookupTable(sizeTable, definition.size);
+
+        fCylinder(context, id + "cylinder1", {
+                "bottomCenter" : vector(0, 0, 0) * inch,
+                "topCenter" : vector(0, 0, 1) * size ^ (1/3),
+                "radius" : size ^ (1/3) / sqrt(PI)
+        });
+    });
+Lookup table parameter
+A lookup table is a tree data structure, defined as a FeatureScript map with a specific format. The root node of the tree specifies the FeatureScript "name" of the option (in the above example, "region"), the "displayName" of the option to show in the dialog (above, "Region"), and, optionally, the "default" value of the option (above, "EU").
+
+The root node finally specifies a map of "entries". The key of each entry is the user-visible name of that option. The value of each entry may be one of two things:
+
+1. If more choices are needed, the entry value will be the next node of the decision tree, with the same form as the root node: a map of "name", "displayName", optional "default", and another map of "entries". 2. If no more are choices needed, the entry value will be final value of the parameter (above, the volumes of e.g. 250 * ml).
+Successive nodes of the decision tree may be nested arbitrarily deep, but every possible path should terminate in a final value.
+
+The parameter's final value may be of any form. One lookup table can specify the value of multiple parameters by setting each final value to a map of several parameters.
+
+A parameter based on the lookup table is declared with type LookupTablePath and annotated with its associated "LookupTable". The LookupTablePath given in the definition can then be resolved to the final value of the parameter with the getLookupTable function.
+
+Arrays
+An array parameter contains a FeatureScript array of items, where each item contains one or more inner parameters. The inner parameters may be of any parameter type (though one array parameter cannot be nested inside another). A user can add any number of items to the array parameter, and may click on the item names to expand or collapse the parameters within.
+
+annotation { "Name" : "Profiles",
+    "Item name" : "Profile",
+    "Item label template" : "Profile (#width)" }
+definition.profiles is array;
+
+for (var profile in definition.profiles)
+{
+    annotation { "Name" : "Width" }
+    isLength(profile.width, LENGTH_BOUNDS);
+
+    annotation { "Name" : "Make square" }
+    profile.isSquare is boolean;
+}
+
+ Array parameter feature dialog
+The value of an array parameter is an array of maps, e.g.:
+
+[
+    { "width" : 0.9 * inch, "isSquare" : false },
+    { "width" : 1.2 * inch, "isSquare" : true }
+]
+As with any FeatureScript array, the items inside can be accessed (via definition.profiles[0] ) or iterated through (via for (var profile in definition.profiles) {} ).
+
+The annotation for an array parameter can include the following fields:
+
+"Item name": The name on the add button.
+"Item label template": The label above each item. Computed values of the inner parameters can be included in the label using the same #parameterName syntax used in the feature name template.
+"Driven query": Specifies a single inner query parameter, and makes the array parameter selection-driven. A selection-driven array parameter has no add button. Instead, when a user selects an entity, a new item is added, and that item's driven query parameter is populated with the selected entity. As long as the array parameter is focused (blue), all entities in the driven query of all items are highlighted in the graphics view. Clicking to remove a highlighted entity will remove the it from driven query parameters, and remove any newly empty items. Thus, the user's interaction with a selection-driven array parameter is very similar to their interaction with a single query parameter.
+"Show labels only": Whether or not to only show the label for each item. This option removes the add button and the expander to the left of the item label, disabling the ability to add or expand and edit items. Unlike when using UIHint.READ_ONLY on an array parameter, items may still be removed, or the array may be cleared. This can be useful for an array parameter whose entries don't need to be edited manually (for example, if they're changed only in editing logic or manipulator change functions) but should still be allowed to be removed.
+"UIHint": Additional UI options, which can include UIHint.COLLAPSE_ARRAY_ITEMS to create new items and present newly opened dialogs with all array items collapsed by default.
+The UIHint UIHint.MATCH_LAST_ARRAY_ITEM can be used on an inner parameter to set its default value according to the last item in the current list, if it exists.
+
+Note that inner parameter names must be unique across the entire feature (even though they are not stored directly on the definition map).
+
+Parameter groups
+Parameters can be combined into a collapsible group and can be nested. Parameter groups can be useful for simplifying large feature dialogs and for indicating which parameters belong together. To define a parameter group, enclose it in a statement block and annotate it with Group Name, e.g.:
+
+annotation { "Group Name" : "My Group" }
+{
+    annotation { "Name" : "My Boolean" }
+    definition.myBoolean is boolean;
+
+    annotation { "Name" : "My Length" }
+    isLength(definition.myLength, LENGTH_BOUNDS);
+}
+By default, when a feature dialog is opened, groups are collapsed. To override that behavior, add "Collapsed By Default" : false to the annotation. The group chevron can be put on the same line as a preceding boolean parameter by adding "Driving Parameter" : "parameterId" to the group annotation. A possible use-case is to combine this with an if statement, as follows:
+
+annotation { "Name" : "Additional Options" }
+definition.additionalOptions is boolean;
+
+if (definition.additionalOptions)
+{
+    annotation { "Group Name" : "Options", "Collapsed By Default" : false, "Driving Parameter" : "additionalOptions" }
+    {
+        annotation { "Name" : "Option" }
+        definition.option is string;
+    }
+}
+UIHints
+A parameter may have one or more "UIHint" strings specified in the annotation. For example, UIHint.OPPOSITE_DIRECTION causes a boolean to be rendered as an opposite direction button. Typically, this is used in tandem with a length parameter, as shown below:
+
+annotation { "Name" : "Flip", "UIHint" : UIHint.OPPOSITE_DIRECTION }
+definition.isFlipped is boolean;
+ Opposite direction in feature dialog
+Multiple hints can be specified in an array (e.g. [ UIHint.OPPOSITE_DIRECTION, UIHint.REMEMBER_PREVIOUS_VALUE ]). Most hints are type-specific, but any parameter may have UIHint.ALWAYS_HIDDEN to prevent it from ever appearing in the dialog. This can be useful for keeping hidden state in the definition for use by manipulators or editing logic.
+
+Some values are intended for Onshape internal use. These may not work or may change behavior in future versions. The UIHint enum in the Standard Library contains more information on this as well as the full set of available options.
+
+Conditional visibility
+Some parameters only make sense for certain settings of other parameters. To express this, the specifications for conditionally visible parameters can be put in if statements referencing already specified parameters. For example:
+
+    ...
+    precondition
+    {
+        definition.useCustomLength is boolean;
+        if (definition.useCustomLength)
+            isLength(definition.customLength, LENGTH_BOUNDS);
+    }
+    ...
+The conditions for the if statements may include comparisons of prior boolean and enum parameters to fixed values using == and !=. They may also include the logical operators &&, ||, and !. The if statements may be nested.
+
+A current limitation is that a parameter specification can only appear once per feature, and so, for example, cannot appear with different annotations in different branches of an if statement. If this behavior is desired, we recommend you use two different parameter names, and merge them inside the function.
+
+Description
+A description can be added to a feature or parameter through the ”Feature Type Description” or ”Description” fields (respectively) in the annotation map.
+
+Descriptions are displayed in the "Search Tools" panel and in the feature/parameter tooltip.
+
+Descriptions can be split up into multiple lines using the ~ operator, and their content can contain basic HTML tags, but not images or external links.
+
+annotation { "Feature Type Name" : "Slot",
+             "Feature Type Description" : "Creates a rectangular slot in a selected part.<br>" ~
+                                          "This feature is an <b>example</b>"
+ }
+export const myFeature = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+            annotation { "Name" : "Slot length",
+                         "Description" : "Distance from the slot's end to its furthest extent along the outside of the part" }
+            isLength(definition.slotLength, LENGTH_BOUNDS);
+    }
+...
+Feature description display Parameter description display
+Icons
+A custom feature icon is specified by uploading the icon as an SVG blob tab and referencing it:
+
+IconNamespace::import(...);
+
+annotation { "Feature Type Name" : "MyFeature", "Icon" : IconNamespace::BLOB_DATA }
+export const myFeature = defineFeature(function(context is Context, id is Id, definition is map)
+...
+An enum or quantity parameter icon is specified analogously:
+
+annotation { "Name" : "My Length", "Icon" : IconNamespace::BLOB_DATA }
+isLength(definition.myLength, LENGTH_BOUNDS);
+ Quantity with icon
+Feature icons are displayed in grayscale to be consistent with our standard feature icons, whereas parameter icons allow color.
+
+It is also possible to reference parameter icons that are used by the standard Onshape features. Instead of specifying an imported blob resource, an entry in the Icon enum may be used as the value of any "Icon" annotation field, as in the example below, which adds icons to the values of an enum parameter:
+
+export enum AxisEnum {
+    annotation { "Name" : "Along X", "Icon" : Icon.ALONG_X }
+    ALONG_X,
+    annotation { "Name" : "Along Y", "Icon" : Icon.ALONG_Y }
+    ALONG_Y,
+    annotation { "Name" : "Along Z", "Icon" : Icon.ALONG_Z }
+    ALONG_Z
+}
+...
+annotation { "Name" : "Axis" }
+definition.axis is AxisEnum;
+ Enum values with icons
+Description images
+A custom feature description image is specified by uploading the image as a JPG, PNG, or SVG blob tab and referencing it:
+
+ImageNamespace::import(...);
+
+annotation { "Feature Type Name" : "MyFeature", "Description Image" : ImageNamespace::BLOB_DATA }
+export const myFeature = defineFeature(function(context is Context, id is Id, definition is map)
+...
+The example below demonstrates the Fillet Everything custom feature with a "Description", an "Icon", and a screen capture of the feature in the Part Studio display imported into the document for reuse as the feature's "Description Image".
+
+Feature description image display in toolip Feature description image display in Search panel
+Feature description images are displayed following the feature description in the feature tooltip and in the "Search Tools" panel. Features can have description images, but unlike icons, parameters cannot. The description image will be displayed in its native size if possible, but will be shrunk uniformly to fit in the two areas it is displayed. Both areas are typically close to 300px by 300px, so images near that size work well.
+
+Manipulator change function
+The manipulator change function allows you to specify manipulator behavior in a very flexible way. It is typically declared as:
+
+export function onManipulatorChange(context is Context, definition is map, newManipulators is map) returns map
+{
+    // modify the definition based on what's in newManipulators
+    ...
+
+    return definition;
+}
+The idea is that when the feature regenerates, it defines some manipulators using addManipulators to be shown on the screen. When a user drags one of these manipulators, the manipulator change function gets called. It can look at the context, the feature definition, and the manipulator changes, and change the feature definition in response. Thus, a manipulator does not have to be tied to a particular parameter and could modify a group of parameters all at once.
+
+See the manipulator module for a simple example.
+
+Manipulator change function arguments
+The context is passed in at a state immediately prior to the feature. After the manipulator change function is executed, it will be rolled back to that same state, so changes made to the context will not persist.
+The definition map is almost exactly as passed into the feature function. The difference is that if the feature specifies programmatic defaults for some parameters, they will not be applied prior to the manipulator change function call.
+The newManipulators map has exactly one entry. The key is one of the manipulator id strings that were passed into the addManipulators function when the feature regenerated. The value is a Manipulator that corresponds to the new value of the manipulator; it's the same as the value that was passed into addManipulators during regeneration, with the exception of some parameters that change as a result of the manipulator interaction:
+offset for the LINEAR_1D and LINEAR_3D (triad) manipulators
+angle for the ANGULAR manipulator
+flipped for the FLIP manipulator
+transform for the TRIAD_FULL manipulator
+Manipulator change function return value
+The return value is a map like definition with some of the parameters modified. The parameter types that can be changed are:
+
+Boolean
+String
+Enum
+Query
+LookupTablePath
+Quantity: can be specified either as a value (ValueWithUnits if appropriate) or, unless the quantity is isAnything, as a string. If a string is used, Onshape will set the expression for the quantity to that string. For instance, the returned definition might include width : "3/8 in" so that the user sees that instead of "0.375 in".
+Editing logic function
+If an editing logic function is specified, it is called whenever the feature definition is changed either explicitly by the user or with a manipulator (but see isCreating in arguments). It can make additional feature definition changes based on the context and the users' edits. The editing logic function is primarily intended for setting default parameters in an intelligent manner.
+
+For example, the modifyFillet feature in std/modifyFillet.fs uses it to set the fillet radius based on the current radius of the selected fillet. The extrude feature uses it to set the opposite direction parameter as well as the boolean merge scope. The cPlane feature uses it to set the plane type based on the preselection.
+
+A word of caution: it is easy to abuse the editing logic function to create a user experience that is more annoying than helpful. Enjoy editing logic responsibly.
+
+Editing logic function arguments
+An editing logic function may have between four and seven arguments. A declaration with seven arguments looks like:
+
+export function onFeatureChange(context is Context, id is Id, oldDefinition is map, definition is map,
+                                isCreating is boolean, specifiedParameters is map, hiddenBodies is Query) returns map
+{
+    // modify the definition
+    ...
+
+    return definition;
+}
+The first four arguments are required.
+
+The context is passed in at a state immediately prior to the feature. After the editing logic function is executed, it will be rolled back to that same state, so changes made to the context will not persist.
+The id is the feature id in question.
+The oldDefinition map is the feature definition prior to the changes that caused the editing logic function to be invoked. If the feature specifies programmatic defaults for some parameters, they will not be applied prior to the editing logic function call.
+The definition map is the feature definition that includes the changes that caused the editing logic function to be invoked. As above, defaults are not applied. A no-op editing logic function just returns the unmodified definition. The editing logic function can tell if a parameter has been changed by comparing its value in definition and oldDefinition.
+Any (or all) of the remaining three arguments may be omitted, but those that remain must appear in the same order relative to each other. Omitting unused arguments may result in better performance.
+
+The isCreating boolean is set to true if the feature is being created and false if it is being edited, having been committed at least once. Note: If isCreating is omitted, the editing logic function will only be called when the feature is being created.
+The specifiedParameters map indicates which parameters have been set by the user since the feature dialog opened. The ids of those parameters that have been specified map to true and those that have not map to false.
+The hiddenBodies query evaluates to all of the bodies have been hidden by the user (that information is not accessible from the context). It is used for example to avoid automatically adding invisible bodies to an extrude merge scope.
+The clickedButton string indicates which button parameter was clicked to trigger the editing logic function. If no button was clicked, clickedButton is the empty string.
+Editing logic function return value
+The return value is a map following the same rules as the return value for the manipulator change function.
+
+Feature output
+Naturally, the most useful output of a feature is the geometry changed and/or created by the feature. However, there are a number of other ways a feature can output useful information, some of which are primarily useful for debugging your own features, and some of which can provide information to the end user of a feature type.
+
+Print
+print and println are two functions defined in the Onshape Standard Library. You may pass any variable into these functions, including string literals.
+
+print("x is ");     // Prints the string "x is "
+println(x);         // Prints a string representation of the value x, followed by a newline
+Like any other FeatureScript statements, the above code will run inside a Part Studio when the feature containing them is added. Their output will be visible in the FeatureScript notices flyout:
+
+Printed text
+
+println uses the toString() method defined for a type. To see a (generally more verbose) literal output, you can convert the value to its raw string representation by concatenating it the value with an empty string:
+
+println(1 * meter);         // Prints "1 meter"
+println("" ~ (1 * meter));  // Prints "ValueWithUnits : { "unit" : UnitSpec : { "meter" : 1 } , "value" : 1 }"
+Debug
+When writing a feature type, it is often useful to see the where the entities and geometry related to a given feature are positioned in the Part Studio.
+
+The graphical output of debug is only visible while the feature dialog is open.
+
+By calling the debug function on any Query, you can see the entities matching the query in the Part Studio:
+
+debug(context, qAdjacent(definition.edge1, AdjacencyType.EDGE, EntityType.FACE));
+debug(context, qAdjacent(definition.edge2, AdjacencyType.VERTEX, EntityType.FACE));
+Debug example
+
+Calling the debug function on geometric types, like Line and Vector, shows a representation of the geometry they represent:
+
+var myLine is Line = evEdgeTangentLine(context, {
+    "edge" : definition.edge1,
+    "parameter" : 0.5
+});
+var myPoint is Vector = myLine.origin + myLine.direction * 2.5 * inch;
+
+debug(context, myLine);
+debug(context, myPoint);
+Debug geometry example
+
+For more examples of data which may be debugged, see the debug module.
+
+Timers
+FeatureScript provides the startTimer and printTimer methods for rough performance profiling. A typical usage is:
+
+startTimer();
+possiblyExpensiveFunction();
+printTimer();
+The output will be the number of elapsed wall-clock milliseconds printed to the notices flyout, as with print.
+
+Multiple timers may be used simultaneously by identifying them with strings:
+
+startTimer("overall");
+expensiveCall1();
+for (var x in someRange)
+{
+    startTimer("individual call"); // resets the timer
+    expensiveCall2();
+    printTimer("individual call");
+}
+printTimer("overall");
+The reported timings may vary for a variety of reasons. If the startTimer/printTimer calls are in different features, the timing may be meaningless because the features may be regenerated at different times.
+
+Error Handling
+When developing robust custom features, error handling has two sides: being prepared for errors that operations and evaluation functions throw and reporting meaningful errors to the user of the feature. Feature errors may be reported at three different severity levels:
+
+Info, using reportFeatureInfo creates a blue bubble with the message while the feature is being edited.
+Warning, using reportFeatureWarning creates a blue bubble and turns the feature red in the feature list.
+Error, using throw regenError(...) undoes all context changes the feature has made (making the feature a no-op) and turns the feature red.
+The default error flow is for any thrown error to be propagated all the way to the top level feature in the Part Studio. For example, if the custom feature includes an opFillet and the geometry cannot be filleted, opFillet will throw a regeneration error with ErrorStringEnum.FILLET_FAILED as the status. If the custom feature does not catch the error, it will fail and the user will see: "Failed to fillet selections." If the custom feature is something like a fillet pocket, that is a reasonable error message. If it is something like a rib-with-fillet, an adjustment of the error message is helpful:
+
+...
+try
+{
+    opFillet(context, id + "fillet", { "entities" : ribPartEdges, "radius" : definition.filletRadius });
+}
+catch
+{
+    throw regenError("Failed to fillet the interface between the rib and the selected part.", ribPartEdges);
+}
+...
+Adding the ribPartEdges argument to regenError will cause the edges that failed to fillet to highlight in red, giving the user a hint of where the problem is. In other cases, it makes sense for the feature not to fail even if one of the operations or evaluation functions fails. For example, a feature that makes multiple notches of some kind may be structured as:
+
+...
+var failedCount is number = 0;
+for (var notch in notches)
+{
+    try
+    {
+        makeNotch(context, notch);
+    }
+    catch
+    {
+        setErrorEntities(context, id, { "entities" : notch.locationQuery });
+        failedCount += 1;
+    }
+}
+if (failedCount == size(notches))
+    throw regenError("Failed to create notches");
+if (failedCount > 0)
+    reportFeatureWarning(context, id, "Failed to create " ~ failedCount ~ " notches.");
+...
+In this case, the feature fails when all notches fail and reports a warning when some of the notches fail. For details about FeatureScript exceptions, see Exception handling.
+
+Values and Types
+Variables and constants
+Variables and constants associate a name with a FeatureScript value. Variables are declared with the var keyword, and constants are declared with the const keyword:
+
+var x = 1;
+const y = 2;
+The value of a variable may be changed at any point later on.
+
+x = 3; // succeeds
+The value of a constant, once it is set, can never be changed.
+
+y = 3; // error: cannot assign to constant y
+Value semantics
+FeatureScript values always behave as if copied on assignment, and references to values are not shared (unless a box is used):
+
+var a = 10;
+var b = a;
+a = 20;
+
+println(a);     // prints "20"
+println(b);     // prints "10"
+Inside a function, the passed in arguments and the return values also behave as if a deep copy were made.
+
+Statement blocks
+A statement block is delimited with braces ({}). Blocks can be added around any set of statements, and are used as part of many control flow structures.
+
+A statement block defines a variable scope. Variables and constants are only visible inside the scope where they are defined:
+
+var visible = "hello";
+if (condition)
+{
+    var invisible = "hello";
+}
+println(visible);       // prints "hello"
+println(invisible);     // semantic error: variable invisible not found
+Unset variables
+If a variable is declared, but no value is assigned, its value is set to undefined.
+
+var u;
+println(u);             // prints "undefined"
+Type constraints
+By default, a variable's type is unconstrained, and may change on assignment. A variable or constant may be declared to always be a certain type by adding the 'is' keyword and a type name following the variable name:
+
+var x = 1;
+var y is number = 1;
+
+x = "string";           // succeeds
+y = "string";           // runtime error: type mismatch
+Variables with type constraints must be initialized immediately to a value matching that type.
+
+var nil is number = 0;  // succeeds
+const n is number = 10; // succeeds
+
+var nil3 is number;                 // parse error: variable with type must be initialized
+var nil2 is number = undefined;     // runtime error: value assigned to variable should be number, was undefined
+Standard types
+All values in FeatureScript have exactly one standard type. The standard types in FeatureScript are boolean, number, string, array, map, box, function, builtin, and undefined.
+
+Boolean
+A boolean may be one of two values, defined with the literals true and false.
+
+var shouldCut = true;
+Number
+A number is a 64-bit floating point number, conforming to the IEEE double-precision standard. A integer is simply a special case of number, and does not have a its own standard type.
+
+number literals can be declared in any of the following ways:
+
+var one = 1;
+var alsoOne = 1.0;
+var bitLess = -.01;
+var million = 1e6;
+var infinity = inf;
+The value of NaN (not a number) does not exist in FeatureScript. Operations which return NaN in other languages, such as the square root of a negative number, will instead throw an error immediately.
+
+String
+A string is a series of characters representing text.
+
+string literals can be in either single quotes or double quotes (which are treated identically), and may contain common escape sequences.
+
+var message1 = "Hello, world!";
+var message2 = 'FeatureScript,\nnot FutureScript';
+var message3 = "Smile \u263A";
+The simplest way of working with strings is with regular expressions, using a few functions defined in the string module:
+
+var str = replace("The answer to everything is 42.", "[1-9]+", "smarter features");
+Array
+An array is an ordered list of values, which need not be of the same type.
+
+An array literal can be declared with brackets:
+
+var empty = [];
+var numbers = [1, 2, 3];
+var things = ["1", 2, ["inner", "array"]];
+Array elements are accessed and changed by indexing into the array with a zero-based index:
+
+var x = numbers[0];         // x is 1
+x = things[2][1];           // x is "array"
+
+var index = 1;
+x = numbers[index];         // x is 2
+
+x = empty[0];               // Throws out-of-range error
+
+things[2] = 42;             // things is now ["1", 2, 42]
+The safe navigation operator ?[...] can be used to access array elemets:
+
+var x = undefined;          // x is undefined
+var z = x?[1];              // z is undefined
+Simple array manipulations can be done with functions defined in the containers module:
+
+var s = size(numbers);              // s is 3
+var arr = makeArray(3);             // arr is [undefined, undefined, undefined]
+var arrFalse = makeArray(3, false); // arrFalse is [false, false, false]
+
+numbers = append(numbers, 4);                   // numbers is [1, 2, 3, 4]
+numbers = concatenateArrays([numbers, [5, 6]]); // numbers is [1, 2, 3, 4, 5, 6]
+numbers = resize(numbers, 3);                   // numbers is [1, 2, 3]
+Iteration over an array can be done with a simple for loop:
+
+for (item in collection)
+{
+    println(item);
+}
+Map
+A map is an collection of key-value pairs which allow the value to be quickly accessed by its key.
+
+A map literal is declared inside braces, with commas separating key-value pairs, and colons separating keys from values.
+
+var map1 = {};
+var map2 = { "a" : 1 };
+Any value may be used as a map key, and a deep copy of the value is used. String keys may be written with or without quotes. However, if a visible variable exists with the same name as a map key, this must be disambiguated, either by adding quotes (to indicate the string), or by adding parentheses (to indicate the variable).
+
+var b = 2;
+var map3 = {
+    one : 1,
+    (b) : "two",
+    3.5 : "three point five"
+};
+// map3 is { "one" : 1, 2 : "two", 3.5 : "three point five" }
+Map elements are accessed or changed using the map key. If the map key is a string that is a valid identifier, dot syntax may be used.
+
+Map elements can be accessed using the safe navigation operator ?.. This eliminates the need for explicit checks and conditional handling.
+
+var val = map2.a;       // v is 1
+val = map2["a"];        // v is 1
+
+map2.a = 0;             // map2 is now { "a" : 0 }
+map2.b = 1;             // map2 is now { "a" : 0, "b" : 1 }
+
+var map4 = undefined;
+var d = map4?.a;        // d is undefined
+If a key does not exist on the map, the result is undefined. A map value can never be undefined, and setting the value to undefined removes the element from the map.
+
+val = map2.c;           // val is undefined
+map2.b = undefined      // map2 is now { "a" : 0 }
+Simple map manipulations can be done with functions defined in the containers module:
+
+s = size(map2)                  // s is 1
+x = isValueIn("two", map3);     // x is true
+Maps can also be iterated over with a for loop:
+
+for (var key, value in myMap)
+{
+    println("Key: " ~ key ~ ", Value: " ~ value);
+}
+In FeatureScript, maps are ordered deterministically. However, this ordering can be unintuitive, especially if the keys are of different types. See Equality and ordering for details.
+
+Box
+As mentioned above, value semantics are ubiquitous in FeatureScript. Function parameters are passed by value, function returns are returned by value, and variable assignment is always by value.
+
+Reference semantics are useful when, for example, a function needs to modify one of its inputs, or two variables need to point to the same underlying data. This can be accomplished with boxes.
+
+A box literal can be declared with new box(value):
+
+var b1 = new box(1);    // b1 is a box containing the number 1
+var b2 = b1;            // b2 is a box equal to b1, containing the same number 1
+var b3 = new box(b1);   // b3 is a box containing the box b1
+The value inside a box is accessed and changed by adding empty brackets after the box. The safe navigation operator can be used to avoid runtime errors by handling cases where value of box is undefined:
+
+var b = b1[];           // b is 1
+
+b1[] = "new value";     // b1 now contains "new value"
+println(b1[]);          // prints "new value"
+println(b2[]);          // prints "new value"
+println(b3[][]);        // prints "new value"
+
+var b4 = undefined;     // b4 is undefined
+var b5 = b4?[];         // b5 is undefined
+Function
+Generally, functions are declared at the top level of a module. However, it is often useful to use a function as a variable, called a lambda function.
+
+A function literal can be assigned to a variable as follows:
+
+var f = function(x) { return x + 1; };
+var f = x => x + 1;
+The => syntax supports a single parameter without parentheses or a full parameter list, and either an expression or a function body. For example:
+
+const twice = (v is ValueWithUnits) returns ValueWithUnits => v * 2;
+const thrice = (v is ValueWithUnits) => { return v * 3; };
+var fourfold = v => v * 4;
+var apply = (f is function, val) => f(val);
+var doubled = (val is ValueWithUnits) => apply(twice, val);
+var cascaded = (a => b => c => a * b + c)(4)(5)(6);  // value is 26
+This function can be called with arguments, just like any other function.
+
+var sum = f(1);         // sum is 2
+One example of a lambda function is in the Standard Library's sort function:
+
+var edgeQuery is Query = qEverything(EntityType.EDGE);
+var edges is array = evaluateQuery(context, edgeQuery);
+
+var sortedEdges = sort(edges, function(edge1, edge2) {
+    return evLength(context, edge1) -
+           evLength(context, edge2);
+});
+// sortedEdges is an array of edge queries, from shortest to longest
+Another omnipresent example is in a feature type declaration:
+
+annotation { "Feature Type Name" : "My Feature" }
+export const myFeature = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        // Define the parameters of the feature type
+    }
+    {
+        // Define the function's action
+    });
+defineFeature takes a lambda function as a parameter, and returns another lambda which calls the function passed in, along with some setup and cleanup.
+
+Builtin
+A builtin is a black box, whose contents cannot be accessed or changed directly in FeatureScript. A builtin is designed to be created by and passed into functions in the Onshape Standard Library. Examples of builtins are a Context, which stores the geometry of a Part Studio, and a Sketch, which stores the geometry of a sketch.
+
+Undefined
+undefined is a special type which can take only one value, also named undefined.
+
+undefined is intended to be the FeatureScript representation of a value which does not exist. It is the result of a failed try() expression, an unset variable, or a nonexistent map entry.
+
+Type tags
+Custom types and enums exist throughout the standard library, and may be defined as top-level constructs. In addition to its standard type, a FeatureScript variable may have a type tag assigned, which represents a more specific contract that the variable should uphold.
+
+A type tag may be checked with the is operator, which returns a boolean:
+
+if (x is Vector)
+{
+    // do something
+}
+Enums
+An enum is an enumeration of a finite set of choices.
+
+export enum LumberSize
+{
+    TWO_BY_FOUR,
+    TWO_BY_SIX,
+    TWO_BY_EIGHT
+}
+An enum value is a string which is one of the enum's choices, tagged with the enum's type. For example, LumberSize.TWO_BY_FOUR is the string "TWO_BY_FOUR" of with the type tag LumberSize.
+
+var size is LumberSize = LumberSize.TWO_BY_FOUR;
+Custom types
+A custom type defines the conditions for a member inside a typecheck, which must be defined as a top-level predicate.
+
+export type Lumber typecheck isLumber;
+
+export predicate isLumber(value)
+{
+    value is map;
+    value.size is LumberSize;
+    isLength(value.length);
+}
+A custom type generally exports a constructor from the same module which exports the type. The standard naming convention is for custom types to begin with an upper-case letter, and for the constructor name to match the type name with a lower-case first letter.
+
+export function lumber(size is LumberSize, length is ValueWithUnits)
+{
+    return { "size" : size, "length" : length } as Lumber;
+}
+The as keyword, as used above, will attach the given type tag to any value. It should be used with caution, since it's possible to attach a type tag to a value which does not satisfy the type's typecheck.
+
+Modeling
+Context
+A context is a builtin that stores modeling data, including bodies (solid, sheet, wire, and point), their constituent entities (faces, edges, and vertices), variables, feature error states, etc. All features, operations, and evaluation functions require a context to operate on.
+
+For more information, see the context module.
+
+Bodies
+The geometry in a context is grouped into independent bodies. A body is comprised of zero or more vertices, faces, and edges and may represent a 3D (solid), 2D (sheet), 1D (wire), or 0D (point) region. A cylinder, for example, is a solid body with no vertices, two edges, and three faces. A construction plane is a special type of sheet body with one face. A body is always connected: for example, two disjoint volumes or surfaces cannot be a single body.
+
+Bodies, vertices, edges, and faces are collectively referred to as "entities". Every face, edge, and vertex belongs to a body. The typical result of regenerating a Part Studio is creating bodies in its context.
+
+Queries
+Queries are used to refer to topological entities (vertices, edges, faces, and bodies) in a context. You can think of a Query as an order form for geometry, specifying criteria that said geometry must satisfy. For instance, qCreatedBy specifies geometry created during a certain operation. qContainsPoint specifies geometry that touches a specified point. These queries can be combined and nested into bigger or more specific queries.
+
+A query does not reference entities, it simply encodes criteria. However, when passed into a function (like an evaluation or an operation) together with a context, that function can determine which entities match the query.
+
+In general, the functions you use will take care of evaluating which entities match a query. However, sometimes it is necessary to determine how many entities match a query, or perform a loop over each match. In this situation, you can use evaluateQuery, which returns an array of transient queries – one for each entity in the context matching the query at the time it was evaluated.
+
+FeatureScript uses queries in place of direct references out of a need for robustness in the face of changes earlier in the feature list. When we reference the top of a cube, we need to be able to find that face again after the user changed the cube's size and drilled a hole through it.
+
+The full set of available query functions can be found in the query module.
+
+Evaluations
+Evaluation functions are used to measure the geometry and topology in a context. They start with ev and take two arguments: a Context and a map that specifies what to measure. For example, evBox3d and evVolume respectively find the bounding box and the volume of a group of entities, while evVertexPoint returns a 3D position Vector for a vertex.
+
+The full set of available evaluation functions can be found in the evaluate module.
+
+Operations
+Operations are standard library functions that create or modify geometry in a context. They start with op and take three arguments: a Context, an operation Id, and a definition map. A feature may have no operations (like assignVariable), one operation (like fillet calls opFillet), or multiple operations (like extrude, which may call opExtrude, opDraft, opBoolean and more).
+
+Operations modify the context which is passed in, potentially creating, deleting, or changing its entities. This modification is tracked in Onshape with a unique Id. For more on operation ids, see the Id type documentation
+
+The full set of available operation functions can be found in the geomOperations module.
+
+Primitives
+Primitives are elementary operations like fCuboid and fCylinder which quickly create simple 3D solid bodies.
+
+The full set of available primitive-creating functions can be found in the primitives module.
+
+Sketches
+Sketches can be created inside of custom features as final products or as a step toward building new geometry.
+
+The typical way of creating sketches from within a feature is different from the typical way of creating sketches interactively in two important ways:
+
+When creating a sketch from FeatureScript, full control over the sketch coordinate system is important. The newSketchOnPlane function creates a sketch whose coordinate system is derived from that of the passed in plane, while the newSketch function (called from Part Studios) uses a canonical coordinate system.
+Sketches created from FeatureScript often don't need to make use of constraints (although they can if necessary) because it is often easier to calculate the desired sketch entity coordinates in FeatureScript than to set up the correct constraint system. The skSolve call is still necessary to generate sketch geometry.
+Advanced sketch functionality, like sketch offset, sketch fillet, etc., is not available in FeatureScript. Some of these gaps can be worked around by extruding a solid body from the sketch and using operations like opThicken or opFillet.
+
+An example of creating and solving a sketch, along with the full set of sketch functions, can be found in the sketch module.
+
+Geometry
+As writing features often involves geometric computation, the standard library provides types and functions to make it easier. There are types to represent points, curves (such as lines and circles), surfaces (planes, cylinders, cones), coordinate systems, and transforms. These are FeatureScript values and should not be confused with entities living in a context. For instance, Vector, Line, Plane, and CoordSystem are types and roughly corresponding respective entities are a vertex, a line edge, a planar face (or a construction plane), and a mate connector. Evaluation functions return geometric types (e.g., evVertexPoint) and operations can create entities from some geometric types (e.g., opPoint).
+
+An issue that often arises when writing geometric code is round-off error in floating-point. We recommend that for comparing geometric objects, you use the tolerantEquals method instead of the builtin == operator (that does an exact comparison). Keep in mind that while tolerantEquals tries to use reasonable tolerances (1e-8 meters for length, 1e-11 radians for angle), they may not be right for your specific application (and there is no general right answer), but they will work well in most cases.
+
+Feature Patterns
+Feature patterns will not automatically work correctly with custom features because different features need to apply the pattern transform differently. To help figure out the right transform to apply, the standard library provides the function getRemainderPatternTransform. See its documentation for more information about feature patterns and how to write features that work with them.
+
+Custom tables
+FeatureScript custom tables can be used to display useful data in Part Studios.
+
+A custom table type, like a custom feature type, is defined with FeatureScript code in a Feature Studio, and can be used in any Part Studio. The table type defines a function to run on a fully regenerated Part Studio, which produces either a Table (to show one table) or a TableArray (to show multiple). This output is displayed as a read-only table, which can be accessed anywhere by a user who has added the table type to their tables.
+
+For example, the table type definition below returns a single table listing the volume of every part.
+
+annotation { "Table Type Name" : "Part volumes" }
+export const partVolumes = defineTable(function(context is Context, definition is map) returns Table
+    precondition
+    {
+    }
+    {
+        var columns = [tableColumnDefinition("name", "Part name"),
+                       tableColumnDefinition("volume", "Volume")];
+
+        var rows = [];
+        for (var part in evaluateQuery(context, qAllModifiableSolidBodies()))
+        {
+            var partName = getProperty(context, { "entity" : part, "propertyType" : PropertyType.NAME } );
+            var volume = evVolume(context, { "entities" : part });
+            rows = append(rows, tableRow({ "name" : partName, "volume" : volume }));
+        }
+
+        return table("Part volumes", columns, rows);
+    });
+Custom table displaying part volumes
+
+The table function can access any data that a custom feature can access: all geometry of the Part Studio, all its variables, all its attributes, as well as any FeatureScript functionality from in the Onshape Standard Library or other Feature Studios. Additionally, from a table function, you can use the getProperty() function to access the values of any part properties.
+
+Onshape hole table
+
+The Onshape hole table is a table type defined in the Onshape Standard Library. Just like Onshape's standard features are implemented using the same FeatureScript functionality custom features have access to, Part Studio hole tables are implemented using the functionality available to custom tables.
+
+Table content
+A table consists of rows and columns. Column definitions are constructed with the tableColumnDefinition(...) functions, which define an internal id, the user-facing name of the column, and a cell alignment for the column (left, right, or center).
+
+Rows are constructed with the tableRow(...) functions, whose columnIdToCell arguments set the contents of all the row's cells. The keys in the columnIdToCell map should match the ids of the table columns (though columns can be skipped to leave cells blank).
+
+The value in each cell may be any of the following:
+
+String : Any string will be displayed as-is inside the table cell
+ValueWithUnits : Will be displayed in the cell in a human readable format (e.g. 1.23 in) with the precision and units of the end user's document workspace.
+TemplateString : Values with units may be inserted into template strings, so that they may still be shown with the correct precision and units while being part of other text in the cell. For example, a cell value of templateString("diam = #d", { "d" : someDiameter }) might display as "diam = 1.23 in" in a workspace with inch units.
+TableCellError : In the event of unexpected or problematic geometry, a table cell may be displayed with a red background by passing in e.g. tableCellError("bad value", "Bad value encountered"). The second argument is displayed in a tooltip when hovering over the erroneous cell, and either argument may be a TemplateString.
+Values with units and TemplateStrings may also be used in the table title and column names.
+Cross-highlighting
+Rows and/or columns may be given entities to cross-highlight in their constructors. These entities will be highlighted when a user hovers their mouse over the table cells. Additionally, table rows will highlight when the user hovers over its entities, and will scroll to the relevant entities when they are selected.
+
+Printing
+For debugging purposes, a table may also be output as a string in the FeatureScript console, which will format the table in a human-readable fashion:
+
+println(table("Part volumes", columns, rows));
+Table parameters
+Like custom features, custom tables can be defined with input parameters. They are defined the same way that custom feature inputs are defined, but are limited to booleans, strings, enums, and quantities.
+
+For example, the precondition of the table type below allows the user to set their own threshold for detecting small fillet radii, and optionally allows computing the size of the geometry being listed:
+
+precondition
+{
+    annotation { "Name" : "Minimum fillet radius" }
+    isLength(definition.minimumFilletRadius, NONNEGATIVE_ZERO_DEFAULT_LENGTH_BOUNDS);
+
+    annotation { "Name" : "Calculate size" }
+    definition.calculateSize is boolean;
+}
+Custom table inputs
+
+Like custom features, custom tables are fully recomputed each time one of these inputs changes.
+
+Using custom tables with custom features
+It is often useful to show data from custom features in a custom table. For instance, the FeatureScript Spur Gear feature is defined in the same document as a custom table which displays data about the gears that have been created: Gear table
+
+These measurements displayed are all either parameters of the spur gear feature, or are computed while running the spur gear feature. To avoid extra work and inaccuracy from measuring these gears at the end of regeneration, the Spur Gear feature simply sets attributes on the gear parts created. The Gears table can read these attributes and display them in a table.
+
+Computed part properties
+Computed part properties are properties whose values are computed using FeatureScript functions. These properties are available wherever Part properties are available, like BOMs and drawings. Rather than being manually set to a static value, they are computed from a custom FeatureScript function. The FeatureScript function can compute the property value with access the full Part Studio context, including geometry of the Part, its attributes, its non-computed properties, and Part Studio variables.
+
+Standard computed part properties like Mass are available to everyone, while custom computed part properties you define can be made available to your company.
+
+Defining computed part properties
+The following sections provide a step by step guide to creating, testing, and using computed part properties.
+
+Define the property function
+Property functions can be defined in any Feature Studio, though it may be useful to create a separate document for your company's property functions.
+
+The following FeatureScript snippet defines a simple property function that will compute the volume of a part.
+
+annotation { "Property Function Name" : "computeVolume" }
+export const computeVolume = defineComputedPartProperty(
+             function(context is Context, part is Query, definition is map) returns ValueWithUnits
+    {
+        return evVolume(context, { "entities" : part });
+    });
+The import onshape/std/common.fs has everything you typically need for defining property functions. Importing geometry.fs by property function Feature Studios is discouraged for performance reasons.
+
+The Property Function Name annotation and the use of defineComputedPropertyFunction identify the function as a computed part property function. Both are essential. When you start to type defineComputed in the FeatureScript editor, you can autocomplete to a template for your property function.
+
+Computed part property functions must specify a FeatureScript return type, which must be one of:
+
+string
+number
+boolean
+ValueWithUnits
+Your property functions have access to the full power of FeatureScript: all geometry of the part, and all FeatureScript functionality from the Onshape Standard Library or other Feature Studios, including access to non-computed properties using the getProperty() function. Computed part property functions cannot use other computed part properties using getProperty(), but they can call other functions including other property functions.
+
+Test the property function
+Onshape generates custom tables for your computed part property functions that you can use in the same workspace in which you define the property functions. To use this feature, create some parts in a Part Studio in the same workspace, and then select the appropriate custom table from the custom tables tab.
+
+Feature studio showing generated custom tables
+
+If there are errors, they will appear in the FeatureScript notices ({!}) in the Part Studio. If that happens, you can monitor the Part Studio from the Feature Studio where you defined the property functions, and fix the errors from there.
+
+Outside of this workflow, runtime errors in computed property functions are not visible in the FeatureScript notices to users viewing the properties. Thus, it is generally not recommended to throw errors inside custom property functions, or to leave errors in called functions uncaught, even in cases where the property is clearly not applicable.
+
+Create a document version
+Property functions are versioned by the document version of their Feature Studio, so you need to commit the Feature Studio and create a document version to refer to the version you want from your custom property.
+
+Don't forget to create a new document version when you change your property functions, and then edit the custom property in your company's setting to use the new version.
+
+Define the custom property
+Custom computed part properties are defined like other custom properties in the custom properties section of your company settings. In order to associate a custom property with a property function, making it into a computed part property, the following are required:
+
+The property type must be one of Text, Double, Boolean, or Value with units, corresponding to the FeatureScript types listed above.
+The property's categories must include Part.
+The property will need to be active in order to use it.
+Note that the Edit value in workspace and Edit value in version checkboxes affect when a computed part property can be overridden. The default is for it to be computed.
+
+When the above conditions are met, a Computed part properties section appears in the property details form. From there, you can select a property function by document, version, feature studio, and function name. You can use the features of the selection dialog to navigate to other documents and versions as needed.
+
+Property details showing function selection dialog
+
+Once a property function has been selected, the Property function source field will contain a link that will open the right version of the feature studio in a new tab.
+
+Using computed part properties
+Using computed part properties in the properties dialog
+Computed part properties are included in the properties dialog when you request properties for parts. Computed properties have a script f after their names, and will also have an Override checkbox if they can be overridden in the properties dialog.
+
+Properties dialog showing computed part properties
+
+To override a computed value, check the Override checkbox and enter the override value. To remove an override and use the computed value, uncheck the Override checkbox. When removing an override, the dialog will display Computed until you click Apply, and then the computed value will be computed and displayed.
+
+Using computed part properties in a bill of materials
+You can add computed part properties to a bill of materials using the Add column dropdown. You can override computed part properties in the BOM by editing the cells. If a table cell contains an override, it will display a hover tooltip indicating that it is an overridden computed property. You can remove the override using the Remove override context menu item from the table cell.
+
+Adding computed part properties to a bill of materials will increase the time required to display the table if previously computed values are not available in a runtime cache.
+
+Using computed part properties in configured part properties
+You can add computed part properties to the configured properties table in a part studio using the Add property dropdown. Similar to a bill of materials, you can provide configuration specific values for computed properties by editing their values in the table. You can also remove a configured value from a table cell using the Remove configured value context menu from the table cell.
+
+Table cells for computed part properties that do not have configured override values display Computed rather than the actual computed values because computing property values for multiple configurations is computationally expensive.
+
+Imports
+Direct FeatureScript imports
+The FeatureScript import system can be used to bring in code or data from other elements into your Feature Studios. In a Feature Studio, you can import another Onshape tab with the import dialog, found by pressing the import button:
+
+Import button
+
+This dialog allows you to find Feature Studios and other tabs within this workspace and in other documents. Clicking on a tab in the dialog will insert import text into your Feature Studio with a unique id that points to the selected Onshape tab:
+
+// Workspace import
+import(path : "990d0d558752560035c1bc8e", version : "e83d3c3d23dea63825b44d09");
+
+// Linked document import
+import(path : "62bfa9d164ac3029984f7b53/c28fe04f33cbfe2c69f4e894/aa388ed6ebc848668b717010", version : "56c4b769218439ffa1a4699e");
+Feature Studios cover the path ids (above) with a label (below) containing the human-readable names of that imported document, version, and tab. To reveal the underlying path ids, simply move your cursor into or highlight the text of that label.
+
+Import labels
+
+The "Workspace import" above is a reference to another tab in the current workspace. Like all workspace references in Onshape, this import will update automatically when the imported tab is changed.
+
+The "Linked document import" above is a reference to a tab in another document. Like all linked document references in Onshape, it is fixed to a specific version of that document. When a newer version of that document is created, the link icon will turn blue. At any time, you can click the link icon to update to the latest version, or to point the import to any other version. For more on creating, linking, and updating versions in Onshape, see the linked documents documentation.
+
+Importing any type of tab will make a number of symbols visible (see below what symbols each tab type exposes). These symbols may be used directly in the importing Feature Studio:
+
+var result = importedFunction();
+Any import can optionally be prefixed by a namespace. If it is, its symbols may be accessed through the same namespace:
+
+MyFunctions::import(...);
+...
+x = MyFunctions::importedFunction();
+Importing another Feature Studio
+When importing another Feature Studio, all the symbols which have been exported become available to the importing Feature Studio. An exported symbol is any top level node which has been declared with the export prefix:
+
+export function myFunction(x) {...}
+export enum myEnum {...}
+export type myType typecheck p;
+export predicate myPredicate(value) {...}
+By default, symbols imported by the current module are not exported by it. However, you can also export an import like any other top level node. This makes sense if, for instance, a module also exports functions that use an imported type or a feature that uses imported enums.
+
+export import(path : "onshape/std/tool.fs", version : "");
+Importing external data
+To guarantee that Part Studios always regenerate the same way, external data must be uploaded into an Onshape tab before FeatureScript can reference it.
+
+Importing an uploaded tab imports the constant BLOB_DATA, which is a map with at least the following keys:
+
+mediaType: A string for the mime / media type of the uploaded data, such as "text/csv" or "image/png"
+blobType: A less specific type string. Currently one of "IMAGE", "CSV", "JSON", "TEXT, ""BREP", "OTHER"
+dataId: A string that identifies the data. Suitable for passing for opImportForeign if blobType is "BREP".
+Onshape currently understands uploaded image, CSV, JSON, and TEXT files.
+
+Data in CSV files (parsed using Apache Commons CSV Excel format) can be referenced via the csvData key: the corresponding value is an array. If the CSV file consists of one record (one line), each entry in the array is a field, represented as a number if the field can be parsed as a number, otherwise represented as a string. If the CSV file consists of multiple records, each entry in the csvData array is an array corresponding to one record.
+
+Data in JSON files can be referenced via the jsonData key. The value is of a type corresponding to the top-level entity of the file: it is a map if the entity was an object, an array if the entity was an array, and analogously for other standard types. Note that the JSON null value has no equivalent in FeatureScript and is imported as undefined. Because an undefined entry in a map is considered nonexistent, this can mean that the imported maps report a smaller size than the number of entries in the JSON.
+
+Data in TEXT files can be referenced via the textData key: the corresponding value is a String. A UTF-8 encoding is assumed.
+
+An image will have the keys imageWidth and imageHeight mapped to numbers of pixels. Color data for individual pixels is not currently available to FeatureScript.
+
+For example, to access the first element in an uploaded CSV file with multiple records:
+
+MyData::import(path : "...", version : "...");
+...
+const firstEntry = MyData::BLOB_DATA.csvData[0][0];
+...
+Importing a Part Studio
+A Part Studio exports a function named build, which takes a configuration argument (as a map) and returns a context containing everything created in that Part Studio. It is often useful to utilize a Part Studio to create pieces of your feature (which may be transformed or booleaned in FeatureScript), rather than manually writing the code to build complex geometry in FeatureScript.
+
+The instantiator module provides a convenient mechanism for doing this. A simple feature which uses it to builds a Part Studio, merge in its context, and transform its bodies to a mate connector is below. Naturally, the import should be changed to an import of a Part Studio.
+
+MyThing::import(path : "", version : "");
+
+annotation { "Feature Type Name" : "Add thing" }
+export const addThing = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        annotation { "Name" : "Mounting mate connector", "Filter" : BodyType.MATE_CONNECTOR, "MaxNumberOfPicks" : 1 }
+        definition.mountingConnector is Query;
+    }
+    {
+        var thingTransform is Transform = toWorld(evMateConnector(context, {
+               "mateConnector" : definition.mountingConnector
+        }));
+
+        var instantiator = newInstantiator(id + "instantiate");
+        addInstance(instantiator, MyThing::build, { "transform" : thingTransform });
+        instantiate(context, instantiator);
+    });
+This feature can be used to add bodies from the imported part studio and place them correctly all in one feature. Just like with other tab imports, changing the Part Studio will instantly update the feature and any Part Studios referencing the feature, so long as all are in the same workspace.
+
+Using the Add Thing feature
+
+Reference parameters
+A reference parameter is a feature input which allows the user to select any tab in Onshape (provided they have link permission), and provides the geometry or data in that tab to the custom feature. Unlike direct FeatureScript imports, the import of a reference parameter is added to the Part Studio, and the data is passed to the feature. This allows users to change what data a feature is using without changing the code of the feature itself.
+
+Reference parameters can allow selection of either Part Studios, CSV files, JSON files, images, or imported CAD data.
+
+Part Studio
+A Part Studio reference parameter provides the feature with PartStudioData. This data structure can be passed directly into an instantiator to create the user-selected bodies:
+
+annotation { "Feature Type Name" : "Place parts" }
+export const placeParts = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        annotation { "Name" : "Parts" }
+        definition.partStudio is PartStudioData;
+    }
+    {
+        var instantiator = newInstantiator(id + "instantiator");
+        addInstance(instantiator, definition.partStudio);
+        instantiate(context, instantiator);
+    });
+Part Studio reference in feature dialog
+The PartStudioData value contains three fields: a buildFunction, a partQuery, and a configuration, all of which are used directly by the addInstance function above.
+
+To instantiate a different set of bodies than what the user selected, you can modify the partQuery before calling the addInstance function. For example, the code below will also instantiate the mate connectors belonging to any selected parts.
+
+definition.partStudio.partQuery = qUnion([
+        definition.partStudio.partQuery,
+        qMateConnectorsOfParts(definition.partStudio.partQuery)
+    ]);
+addInstance(instantiator, definition.partStudio);
+To instantiate a Part Studio at a different configuration than the one selected, you can override any configuration inputs in the addInstance function. When doing this, it is recommended that you also annotate the reference parameter with a list of "ComputedConfigurationInputs". These inputs are then marked as "Computed" and cannot be edited, preventing any user confusion about why their input is being overridden.
+
+annotation { "Feature Type Name" : "Place with length" }
+export const placePartWithLength = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        annotation { "Name" : "Part Studio", "ComputedConfigurationInputs" : [ "Length" ] }
+        definition.partStudio is PartStudioData;
+    }
+    {
+        const computedLength = getComputedLength(context, id, definition);
+        const instantiator = newInstantiator(id + "instantiator");
+        addInstance(instantiator, definition.partStudio, {
+            "configurationOverride" : {
+                "Length" : computedLength
+            }
+        });
+        instantiate(context, instantiator);
+    });
+Place with length
+
+Both the configuration map keys and the "ComputedConfigurationInputs" list above use the configuration inputs' FeatureScript id. This id is not usually user-visible, but it can be modified using the Edit FeatureScript IDs dialog.
+
+The Part Studio reference dialog by default allows selecting all available PartStudioItemTypes. You can limit selection by specifying a "Filter" containing a union of any number of item types. When setting this filter, it is recommended that you also add a similar filter to the body of your feature, so the user can select the entire Part Studio without providing unexpected geometry to your feature.
+
+annotation { "Feature Type Name" : "Place solids" }
+export const myFeature = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        annotation { "Name" : "Parts", "Filter" : PartStudioItemType.SOLID || PartStudioItemType.ENTIRE_PART_STUDIO }
+        definition.parts is PartStudioData;
+    }
+    {
+        definition.parts.partQuery = qBodyType(definition.things.partQuery, BodyType.SOLID);
+
+        const instantiator = newInstantiator(id + "instantiator");
+        addInstance(instantiator, definition.parts);
+        instantiate(context, instantiator);
+    });
+While a reference parameter always refers to a single tab, it will, by default, allow selecting any number of items within that tab. To allow only a single selection, you can add "MaxNumberOfPicks" : 1 to the parameter annotation (other values of MaxNumberOfPicks are not yet supported).
+
+annotation { "Name" : "Sketch profile", "Filter" : PartStudioItemType.SKETCH, "MaxNumberOfPicks" : 1 }
+definition.sketchProfile is PartStudioData;
+For more in-depth examples (or to try out the example features above), see the reference parameter examples document.
+
+Image
+An image reference parameter provides the feature with ImageData. The referenced image can be placed into a Part Studio by calling skImage.
+
+annotation { "Feature Type Name" : "Place image" }
+export const placeImage = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        annotation { "Name" : "Image" }
+        definition.image is ImageData;
+
+        annotation { "Name" : "Image width" }
+        isLength(definition.imageWidth, LENGTH_BOUNDS);
+    }
+    {
+        var sketch1 = newSketch(context, id + "sketch1", {
+                "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+        });
+        skImage(sketch1, "image1", {
+                "blobInfo" : definition.image,
+                "firstCorner" : vector(0 * inch, 0 * inch),
+                "secondCorner" : vector(definition.imageWidth, 0 * inch) // calculate height automatically
+        });
+        skSolve(sketch1);
+    });
+For more in-depth examples (or to try out the example feature above), see the reference parameter examples document.
+
+CSV
+A CSV reference parameter provides the feature with TableData. The referenced data can be used by the feature to create new geometry like points or splines:
+
+annotation { "Feature Type Name" : "Create 3D spline" }
+export const create3dSpline = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        annotation { "Name" : "Spline points" }
+        definition.splinePointsTable is TableData;
+    }
+    {
+        const csvUnits = inch;
+        const points = mapArray(definition.splinePointsTable.csvData, function(row) {
+            // map CSV columns 0, 1, and 2 to a vector of X, Y, Z
+            return vector(row[0], row[1], row[2]) * csvUnits;
+        });
+
+        opFitSpline(context, id + "fitSpline1", {
+                "points" : points
+        });
+    });
+JSON
+A JSON reference parameter provides the feature with JSONData. The data can be accessed like any other FeatureScript type.
+
+annotation { "Feature Type Name" : "Sketch text" }
+export const sketchText = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        annotation { "Name" : "Person data" }
+        definition.personData is JSONData;
+    }
+    {
+        var sketch1 = newSketch(context, id + "sketch1", {
+                "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+        });
+        skText(sketch1, "text1", {
+                "text" : definition.personData.jsonData.firstName,
+                "fontName" : "OpenSans-Regular.ttf",
+                "firstCorner" : vector(0, 0) * inch,
+                "secondCorner" : vector(1, 1) * inch
+        });
+        skSolve(sketch1);
+    });
+Text
+A text reference parameter provides the feature with TextData. The data can be accessed as a string, provided that the text file is under 100KB.
+
+annotation { "Feature Type Name" : "Text content" }
+export const textFile = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        annotation { "Name" : "Text data" }
+        definition.message is TextData;
+    }
+    {
+        var textContent = definition.message.textData;
+        println(textContent);
+    });
+CAD Import
+A CAD import reference parameter provides the feature with CADImportData. The referenced geometry can be placed into a Part Studio by calling opImportForeign. A CAD import reference parameter allows selecting blob tabs with imported CAD data uploaded to Onshape.
+
+annotation { "Feature Type Name" : "Place import" }
+export const placeBrep = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        annotation { "Name" : "Brep" }
+        definition.brep is CADImportData;
+    }
+    {
+        if (size(definition.brep) > 0)
+        {
+            opImportForeign(context, id + "importForeign1", {
+                "blobData" : definition.brep
+            });
+        }
+    });
+For more in-depth examples (or to try out the example feature above), see the reference parameter examples document.
+
+Updating imports
+FeatureScript imports, like all Onshape references, come in two flavors:
+
+Workspace reference: Inside the current document and workspace, imports of other tabs will always be up-to-date. Any changes to the other tab will propagate to the current tab without any additional user action.
+Version reference: Outside the current workspace, imports are always made at a single version (usually, a version of another document). Changes to the other tab will not automatically propagate. Instead, when a new version of the other tab is created, the referencing document always has the choice of whether or not to update.
+In both the FeatureScript import dialog and the reference parameter dialog, the "Current document" tab will default to creating a workspace reference. The "Other documents" tab will always create a version reference.
+
+In a direct Feature Studio import, the only way to update the import is by deleting the import statement, then using the import dialog to reinsert an import at another version.
+
+With reference parameters, any feature with a version reference will display a link icon. The icon will turn blue when newer version is created, and a user can click this icon at any time to update to the latest version (or select any other version).
+
+Debugging in Feature Studios
+When creating and editing custom features, it's important to have continuous feedback about what your feature is doing, and, often, why it's breaking. This feedback comes from two sources: FeatureScript analysis, which gives static information, and FeatureScript execution, which gives runtime information.
+
+FeatureScript analysis
+Analysis is run as you type in any Feature Studio in Onshape. It serves to statically process FeatureScript before it is executed, and provides inline feedback including:
+
+Parse errors for code that does not match FeatureScript's grammar
+Semantic warnings for e.g. a variable or function call name that doesn't match anything visibly defined
+Precondition analysis warnings for a feature precondition that doesn't properly specify the feature UI
+Documentation extracted from source comments and shown when hovering on symbols
+Analysis parse error Analysis hover documentation
+
+NOTE
+
+Analysis is run on FeatureScript without waiting for a commit. This means analysis information relates to the current text in a Feature Studio, not the committed version.
+
+FeatureScript execution
+Execution, or "running" FeatureScript code, always begins in a Part Studio. As described in Defining feature types, modifying a Part Studio causes the changed feature, and everything after it, to be executed again (or "regenerated"). Committing a change to a custom feature's code and looking at a Part Studio which uses that feature will also trigger regeneration.
+
+Feedback from FeatureScript execution can greatly aid debugging and includes:
+
+Printed output from functions like print, println, printTimer, and debug
+Language runtime exceptions like dereferencing undefined or dividing by zero
+Thrown exceptions (including regenErrors, which appear as infos)
+Execution notices pane
+
+NOTE
+
+Execution only happens on committed code. This means execution information always relates to the committed version of a Feature Studio, not the current text.
+
+The execution information can be seen in the notices pane after switching to the Part Studio's Onshape tab (or opening it in a new browser tab). However, to see the information directly in a Feature Studio, and see it update as you're editing, you will first need to monitor a Part Studio.
+
+Monitoring execution information
+You can begin monitoring a Part Studio's execution either by selecting "Monitor [Part Studio name]" in the Feature Studio's toolbar, or by selecting "Monitor" next to a Part Studio's notices in the notices pane.
+
+Monitor from toolbar Monitor from notices pane
+
+A monitored Part Studio will be re-executed every time the code of a custom feature it uses is committed. The execution information will then appear in the Feature Studios whose code is executed:
+
+Monitoring thrown exception Monitoring dereference error
+
+Type checking
+Additionally, when monitoring, execution checks that values with type tags in the code conform to their typechecks. Any failures from the typecheck are reported as warnings. To improve performance during ordinary modelling, these typechecks only ever run on monitored Part Studios.
+
+With monitor mode's typechecking, the flow of execution does not change. For example, errors thrown in a typecheck in monitor mode will be shown in the notices panel, but execution will continue as normal, and overall feature error status will not be set.
+
+Profiling regeneration timings
+Decreasing the regeneration time of your custom features is an important part of improving the end user's experience. Fortunately, FeatureScript's design allows Onshape to determine, at a high resolution, which pieces of code (divided into execution steps) are responsible for what portion of execution time.
+
+You can view timing data for individual execution steps of a regeneration by profiling a Part Studio. Like monitoring, profiling can be started on any Part Studio, and will update its results whenever code changes are committed.
+
+Profiling will put hoverable markers on the left-hand side of the code lines your Feature Studio, containing the timings of all steps whose execution took longer than 0.1ms.
+
+Profile data
+
+These markers tell you how many times the code for each step is called, and the total time taken across all those calls. The markers are colored according to the total time for that step relative to the regeneration time of the whole Part Studio (darker, redder colors indicate more time, and lighter, yellower colors indicate less time).
+
+Additionally, a marker in the upper-left corner shows the total time taken for the full Part Studio to regenerate. Hovering on it will show a sorted list of the longest steps from the current Feature Studio.
+
+Summary marker hover
+
+Just like when monitoring, the profile data updates automatically when you commit changes to a Feature Studio used by the profiled Part Studio.
+
+Profiling tips
+A few things to keep in mind while examining your profiling data:
+
+There will always be variability in timings. Timings for individual steps and for the full Part Studio will change slightly up or down between executions for reasons that have nothing to do with code changes.
+
+However, simply switching between Feature Studios in the same document will show timing data from the same full regeneration in each tab.
+
+If you look at a Feature Studio which was never executed as part of the profiled Part Studio's regeneration, the top-left marker will show the message below. If you were expecting this code to be executed, make sure the relevant custom feature has been created (and confirmed) in the profiled Part Studio.
+
+No execution steps in this Feature Studio took more than 0.1ms
+
+The total time in the top left marker represents the time taken to execute the entire Part Studio, including execution of non-custom features. If you include multiple instances of the same feature in a profiled Part Studio, the timings will include calls from all instances of the feature.
+
+Only code which is actually executed will have associated timing data, so, for instance, a branch of an if statement not taken for a certain Part Studio will not yield any timing data.
+
+If your custom feature behaves very differently with different input parameters, we recommend creating a few Part Studios with different use cases, and profiling each of them in turn.
+
+Throwing an exception or a regeneration error will cause successive code to not run. If you see your profiling times improving drastically, make sure to check that you haven't simply thrown a runtime error that prevents further execution.
+
+When calling functions defined in the current Feature Studio, profiling will give data for both the full function call (displayed at the call site), and for the steps inside the function (displayed in the function definition). In this case, the total time taken by one Feature Studio will not be a linear sum of all its profiling data (since that would count the inner execution steps twice).
+
+A profiled step can be any node in the FeatureScript's abstract syntax tree, and the timings represent the total time taken by the FeatureScript interpreter to execute that node. Usually, a node which takes significant time will be a function call, or an operator like + or *, but occasionally more obscure nodes like variable assignments or large map literals will show up with timings in the profile data.
+
+Filtering the notices pane
+You can filter which notices appear in the notices pane. Click the filter icon, select a search option, and then type your search term.
+
+You can filter notices by:
+
+:text = Filter by notice text
+:elementid = Filter by element ID
+:tabname = Only show notices for tab names that match the search string
+:currenttab = Only show notices for the current tab
+:minlevel = Filter by severity level: info | warn | error
+Tips:
+
+Use quotion marks to match a search term exactly. For example, :tabname part studio 1 will display notices for Part Studio 1, Part Studio 10, Part Studio 11, etc. :tabname "part studio 1" will only display notices for Part Studio 1.
+Searches are not case sensitive.
+Filters can be combined. For example :tabname "part studio 2" :minlevel error will display only error notices for Part Studio 2.
+Out of date information
+When markers in the Feature Studio don't represent information from the exact current text of the full Feature Studio, they are marked out-of-date (and may be temporarily incorrect). Below, the left-hand column shows out-of-date versions of an error, a warning, and profile data. The right-hand column shows up-to-date versions of that same information.
+
+Out-of-date error Up-to-date error
+Out-of-date warning Up-to-date warning
+Out-of-date profile data Up-to-date profile data
+Out-of-date markers from analysis will update themselves when analysis on the latest text finishes (which should be quick). Out-of-date markers from execution will be up-to-date after the current code is committed, and execution of that code is complete.
+
+Internal errors
+Internal errors are problems within Onshape which should never happen, no matter what your FeatureScript looks like. If you see a notice reported like the one below, please contact Onshape Support through the feedback menu, or post in the FeatureScript forum.
