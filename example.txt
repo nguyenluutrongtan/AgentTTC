@@ -1,0 +1,133 @@
+#Simple box
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Simple Box" }
+export const simpleBox = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        fCuboid(context, id + "cuboid1", {
+                "corner1" : vector(0, 0, 0) * inch,
+                "corner2" : vector(1, 1, 1) * inch
+        });
+    });
+
+#Simple Cylinder
+FeatureScript 2625;
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "My Feature", "Feature Type Description" : "" }
+export const myFeature = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        fCylinder(context, id + "cylinder1", {
+                "topCenter" : vector(0, 0, 0) * inch,
+                "bottomCenter" : vector(1, 1, 1) * inch,
+                "radius" : 1 * inch
+        });
+    });
+
+#Simple Sphere
+FeatureScript 2625;
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "My Feature", "Feature Type Description" : "" }
+export const myFeature = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        opSphere(context, id, {
+                "radius" : 1 * inch,
+                "center" : vector(1, 1, 1) * inch
+        });
+    });
+
+#Example opBoolean Subtraction
+    opBoolean(context, id + "boolean1", {
+        "tools" : qCreatedBy(id + "...", EntityType.BODY),
+        "targets" : qCreatedBy(id + "...", EntityType.BODY),
+        "operationType" : BooleanOperationType.SUBTRACTION 
+    });
+
+#Example rectangular with through holes
+// FeatureScript code starts here
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Box 20x30x40millimeter with central and corner through holes" }
+export const box20x30x40WithCentralCornerHoles = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        // No user inputs required
+    }
+    {
+        // Create the base box of 20×30×40 millimeter
+        fCuboid(context, id + "baseBox", {
+            "corner1" : vector(0, 0, 0) * millimeter,
+            "corner2" : vector(20, 30, 40) * millimeter
+        });
+
+        // Create a central hole cylinder (radius 10 millimeter, full height)
+        fCylinder(context, id + "centralHole", {
+            "bottomCenter" : vector(10, 15, 0) * millimeter,
+            "topCenter"    : vector(10, 15, 40) * millimeter,
+            "radius"       : 10 * millimeter
+        });
+
+        // Create four corner hole cylinders (radius 2 millimeter, full height)
+        fCylinder(context, id + "cornerHole1", {
+            "bottomCenter" : vector(2,  2,  0) * millimeter,
+            "topCenter"    : vector(2,  2,  40) * millimeter,
+            "radius"       : 2 * millimeter
+        });
+        fCylinder(context, id + "cornerHole2", {
+            "bottomCenter" : vector(18, 2,  0) * millimeter,
+            "topCenter"    : vector(18, 2,  40) * millimeter,
+            "radius"       : 2 * millimeter
+        });
+        fCylinder(context, id + "cornerHole3", {
+            "bottomCenter" : vector(18, 28, 0) * millimeter,
+            "topCenter"    : vector(18, 28, 40) * millimeter,
+            "radius"       : 2 * millimeter
+        });
+        fCylinder(context, id + "cornerHole4", {
+            "bottomCenter" : vector(2,  28, 0) * millimeter,
+            "topCenter"    : vector(2,  28, 40) * millimeter,
+            "radius"       : 2 * millimeter
+        });
+
+        // Subtract the central hole from the base box
+        opBoolean(context, id + "cutCenter", {
+            "tools"         : qCreatedBy(id + "centralHole", EntityType.BODY),
+            "targets"       : qCreatedBy(id + "baseBox",      EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION
+        });
+
+        // Subtract each corner hole sequentially
+        opBoolean(context, id + "cutCorner1", {
+            "tools"         : qCreatedBy(id + "cornerHole1", EntityType.BODY),
+            "targets"       : qCreatedBy(id + "baseBox",      EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        opBoolean(context, id + "cutCorner2", {
+            "tools"         : qCreatedBy(id + "cornerHole2", EntityType.BODY),
+            "targets"       : qCreatedBy(id + "baseBox",      EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        opBoolean(context, id + "cutCorner3", {
+            "tools"         : qCreatedBy(id + "cornerHole3", EntityType.BODY),
+            "targets"       : qCreatedBy(id + "baseBox",      EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        opBoolean(context, id + "cutCorner4", {
+            "tools"         : qCreatedBy(id + "cornerHole4", EntityType.BODY),
+            "targets"       : qCreatedBy(id + "baseBox",      EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION
+        });
+    });

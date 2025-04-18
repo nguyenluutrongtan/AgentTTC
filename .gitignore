@@ -1,4 +1,7 @@
 .env
+featurescript_outputs/
+faiss_guide_index/
+featurescript_outputs/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
