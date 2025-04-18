@@ -561,15 +561,6 @@ def select_model_by_complexity(inputs):
         # Default to advanced model if we can't determine complexity
         return advanced_llm
 
-code_generation_chain = (
-    code_generation_prompt
-    | advanced_llm
-    | StrOutputParser()
-    | advanced_llm
-    | StrOutputParser()
-    | RunnableLambda(clean_code)
-)
-
 # Enhanced code generation chain with RAG
 # Setup for parallel execution: retrieve context from multiple sources and pass requirements
 rag_setup = RunnableParallel(
@@ -792,7 +783,7 @@ if __name__ == "__main__":
     else:
         # Process example requests for FeatureScript
         example_requests = [
-            "Create a rectangular box 20x30x40mm with one central through hole (radius 10mm) and four corner through holes (radius 2mm)"
+            "Create a rectangular box 40x50x60mm with one central through hole (radius 10mm ) and four corner through holes (radius 2mm)"
         ]
 
         for i, request in enumerate(example_requests, 1):
