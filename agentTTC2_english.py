@@ -280,60 +280,30 @@ code_generation_template = """You are an expert Onshape FeatureScript developer 
 {design_requirements}
 ```
 
-**Retrieved Context (from local guide.txt/guide2.txt/example.txt and web search - CRITICAL REFERENCE):**
+**Retrieved Context (from example.txt - MUST FOLLOW EXACTLY):**
 ```
 {retrieved_context}
 ```
 
 **Task:** Generate a complete and functional Onshape FeatureScript code snippet that defines a custom feature accurately modeling the object described in the analyzed design requirements.
 
-**CRITICAL INSTRUCTION:** You MUST strictly follow the syntax, best practices, function usage, and examples provided in the **Retrieved Context**. Pay close attention to the patterns shown in `guide.txt` and `guide2.txt` and `example.txt` (which are part of the context). Do NOT deviate from these guidelines.
-
-**Mandatory requirements for the generated FeatureScript code (Must align with Retrieved Context):**
-
-1.  **Import Statement:** Use the standard import as shown in the context, typically:
-    ```featurescript
-    FeatureScript 2625;
-    import(path : "onshape/std/common.fs", version : "2625.0"); // Use appropriate version
-    ```
-2.  **Feature Annotation:** Include a descriptive `Feature Type Name` as shown in context examples:
-    ```featurescript
-    annotation {{ "Feature Type Name" : "Descriptive Name From Requirements" }}
-    ```
-3.  **Export Feature Definition:** Use the standard `defineFeature` structure:
-    ```featurescript
-    export const featureName = defineFeature(function(context is Context, id is Id, definition is map)
-    ```
-    (Use a descriptive `featureName` based on the requirements title).
-4.  **Precondition Block:** Define parameters precisely as shown in the context, including annotations for `Name`, `Filter`, `Default`, `Bounds` (like `LENGTH_BOUNDS` or custom bounds if defined), etc. Use `isLength`, `isAngle`, `isQuery`, `isBoolean`, etc., correctly.
-    ```featurescript
-    precondition
-    {{
-        //Always keep empty
-    }}
-    ```
-5.  **Main Feature Block:** Implement the logic using ONLY the functions and patterns demonstrated in the **Retrieved Context**.
-    *   Use `op...` functions for operations (e.g., `opExtrude`, `opBoolean`, `opFillet`).
-    *   Use `ev...` functions for evaluations (e.g., `evOwnerSketchPlane`, `evVertexPoint`).
-    *   Use `q...` functions for queries (e.g., `qCreatedBy`, `qSketchRegion`, `qBodyType`).
-    *   Use `sk...` functions for sketching (e.g., `newSketchOnPlane`, `skRectangle`, `skSolve`).
-    *   Handle `context`, `id`, and `definition` correctly as shown in examples.
-    *   Ensure correct use of `Id` concatenation (e.g., `id + "extrude1"`).
-    *   Apply geometric calculations (`vector`, `normalize`, `coordSystem`) as demonstrated.
-6.  **Comments:** Add clear, concise comments explaining major steps, mirroring the style in the context examples.
-7.  **Units:** Consistently use units (`inch`, `mm`, `meter`, `degree`) as required by FeatureScript functions and demonstrated in the context.
-8.  **Error Handling (Optional but Recommended):** If context shows examples, implement basic `try...catch` blocks for operations prone to failure (like `opFillet`) and use `reportFeatureWarning` or `throw regenError`.
+**CRITICAL INSTRUCTION:** You MUST strictly follow these rules:
+1. EXACTLY follow the patterns and structure shown in example.txt
+2. Use the SAME import statements as shown in the matching example from example.txt
+3. Match the EXACT syntax and function usage from example.txt
+4. For each shape type (box, cylinder, sphere), use the EXACT corresponding example from example.txt as your template
+5. For boolean operations (like subtraction), use the EXACT pattern shown in the example.txt opBoolean example
+6. Do not deviate from these patterns unless absolutely necessary
+7. When setting the feature type description, ONLY use characters from the ASCII character set
+**Pattern Matching Rules:**
+1. For boxes: Use the pattern from "Simple box" example
+2. For cylinders: Use the pattern from "Simple Cylinder" example
+3. For spheres: Use the pattern from "Simple Sphere" example
+4. For boolean operations: Use the pattern from "Example opBoolean Subtraction"
+5. For complex features (like boxes with holes): Use the pattern from "Example rectangular with through holes"
 
 **Output Format:**
-Return *only* the complete, executable FeatureScript code within a single `featurescript` code block. Ensure the code is clean, well-formatted, and directly usable in Onshape.
-
-```featurescript
-// FeatureScript code starts here
-FeatureScript 2625; // Adjust version based on context if possible
-import(path : "onshape/std/common.fs", version : "2625.0"); // Adjust version based on context
-
-// ... rest of the FeatureScript code adhering strictly to the context ...
-```
+Return *only* the complete, executable FeatureScript code following the EXACT patterns from example.txt.
 """
 
 code_validation_template = """Thoroughly check and validate the following Onshape FeatureScript code against standard practices and provided guidelines (implicitly, the context used during generation).
@@ -450,56 +420,37 @@ def process_validation_result(validation_result: str) -> dict:
 
 def create_rag_query(design_reqs: DesignRequirements) -> str:
     """Creates a focused RAG query for FeatureScript based on analyzed design requirements."""
+    # Prioritize example.txt patterns
     shape_types = []
     if design_reqs.shapes:
         shape_types = list(set([s.shape_type for s in design_reqs.shapes]))
 
-    # Add specific queries for example shapes
+    # Modified to focus on example.txt patterns
     example_queries = []
     for shape in shape_types:
         if shape == "box":
-            example_queries.append("Simple box example")
+            example_queries.append("#Simple box")
         elif shape == "cylinder":
-            example_queries.append("Simple Cylinder example")
+            example_queries.append("#Simple Cylinder")
         elif shape == "sphere":
-            example_queries.append("Simple Sphere example")
+            example_queries.append("#Simple Sphere")
 
-    # Combine with existing query logic
-    query_parts = ["Onshape FeatureScript"]
-    query_parts.extend(example_queries)
-
-    # Add existing shape-specific operations
-    shape_map = {
-        "box": "opSketch skRectangle opExtrude",
-        "cylinder": "opSketch skCircle opExtrude",
-        "sphere": "opSketch skArc opRevolve",
-        "cone": "opSketch skLine opRevolve",
-        "torus": "opSketch skCircle opRevolve"
-    }
-
-    for shape in shape_types:
-        if shape in shape_map:
-            query_parts.append(shape_map[shape])
-
-    # Add operation-specific terms
+    # Add boolean operation patterns if needed
     if design_reqs.operations:
-        op_map = {
-            "cut": "opBoolean SUBTRACTION",
-            "fuse": "opBoolean UNION",
-            "common": "opBoolean INTERSECTION"
-        }
-        fs_ops = [op_map.get(o.operation_type, o.operation_type) for o in design_reqs.operations]
-        query_parts.extend(list(set(fs_ops)))
+        for op in design_reqs.operations:
+            if op.operation_type == "cut":
+                example_queries.append("#Example opBoolean Subtraction")
 
-    query_parts.append("commonImports.fs version")
+    # If it's a complex feature, add the relevant example
+    if len(shape_types) > 1 or (design_reqs.operations and len(design_reqs.operations) > 0):
+        example_queries.append("#Example rectangular with through holes")
 
     # Join all parts with space
-    query = " ".join(list(dict.fromkeys(query_parts)))
+    query = " ".join(example_queries)
 
     # Fallback if no specific terms identified
-    if len(query_parts) <= 2:
-        fallback_term = design_reqs.title if design_reqs.title else 'custom feature'
-        return f"Onshape FeatureScript {fallback_term} example code"
+    if not example_queries:
+        return "#Simple box"  # Default to simple box example
 
     return query
 
@@ -783,7 +734,7 @@ if __name__ == "__main__":
     else:
         # Process example requests for FeatureScript
         example_requests = [
-            "Create a rectangular box 40x50x60mm with one central through hole (radius 10mm ) and four corner through holes (radius 2mm)"
+            "a 5x10 lego brick",
         ]
 
         for i, request in enumerate(example_requests, 1):

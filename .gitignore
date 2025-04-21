@@ -62,3 +62,4 @@ share/python-wheels/
 
 cad_outputs/
 .env
+.aider*

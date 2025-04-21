@@ -18,7 +18,7 @@ export const simpleBox = defineFeature(function(context is Context, id is Id, de
 FeatureScript 2625;
 import(path : "onshape/std/common.fs", version : "2625.0");
 
-annotation { "Feature Type Name" : "My Feature", "Feature Type Description" : "" }
+annotation { "Feature Type Name" : "My Feature"}
 export const myFeature = defineFeature(function(context is Context, id is Id, definition is map)
     precondition
     {
@@ -35,7 +35,7 @@ export const myFeature = defineFeature(function(context is Context, id is Id, de
 FeatureScript 2625;
 import(path : "onshape/std/common.fs", version : "2625.0");
 
-annotation { "Feature Type Name" : "My Feature", "Feature Type Description" : "" }
+annotation { "Feature Type Name" : "My Feature"}
 export const myFeature = defineFeature(function(context is Context, id is Id, definition is map)
     precondition
     {
@@ -131,3 +131,65 @@ export const box20x30x40WithCentralCornerHoles = defineFeature(function(context 
             "operationType" : BooleanOperationType.SUBTRACTION
         });
     });
+
+#Example opFillet
+    opFillet(context, id + "fillet1", {
+        "entities" : qCreatedBy(id + "baseBox", EntityType.EDGE),            
+        "radius" : 0.15 * inch
+    });
+
+#Example a LEGO Brick
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "LEGO 2x4 Brick"}
+export const lego2x4Brick = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        // Nếu muốn expose tham số thickness cho người dùng, có thể thêm ở đây:
+        // annotation { "Name" : "Wall Thickness", "Default" : 1.7 * millimeter }
+        // isParameter(definition.thickness, ThicknessType);
+    }
+    {
+        // 1. Thân gạch
+        fCuboid(context, id + "base_box", {
+            "corner1": vector(0, 0, 0) * millimeter,
+            "corner2": vector(31.8, 15.8, 9.6) * millimeter   // kích thước LEGO 2×4
+        });
+
+        // 2. Tạo 1 stud và pattern 4×2
+        fCylinder(context, id + "top_stud", {
+            "bottomCenter": vector(4, 4, 9.6) * millimeter,
+            "topCenter":    vector(4, 4, 11.3) * millimeter,  // 9.6 + chiều cao stud 1.7mm
+            "radius":       2.4 * millimeter
+        });
+
+        // Chuẩn bị mảng transforms và tên instance cho 8 studs
+        var transforms = [];
+        var names = [];
+        for (var i = 0; i < 4; i += 1)
+        {
+            for (var j = 0; j < 2; j += 1)
+            {
+                transforms = append(transforms,
+                    transform(vector(i * 8, j * 8, 0) * millimeter)
+                );
+                names = append(names, "stud_" ~ i ~ "_" ~ j);
+            }
+        }
+        opPattern(context, id + "stud_pattern", {
+            "entities":                  qCreatedBy(id + "top_stud", EntityType.BODY),
+            "transforms":                transforms,
+            "instanceNames":             names,
+            "copyPropertiesAndAttributes": true
+        });
+    });
+
+#example opPattern
+        opPattern(context, id + "stud_pattern", {
+            "entities":                  qCreatedBy(id + "top_stud", EntityType.BODY),
+            "transforms":                transforms,
+            "instanceNames":             names,
+            "copyPropertiesAndAttributes": true
+        });
