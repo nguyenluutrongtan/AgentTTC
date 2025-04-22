@@ -147,25 +147,25 @@ annotation { "Feature Type Name" : "LEGO 2x4 Brick"}
 export const lego2x4Brick = defineFeature(function(context is Context, id is Id, definition is map)
     precondition
     {
-        // Nếu muốn expose tham số thickness cho người dùng, có thể thêm ở đây:
+        // If you want to expose the thickness parameter to the user, you can add it here:
         // annotation { "Name" : "Wall Thickness", "Default" : 1.7 * millimeter }
         // isParameter(definition.thickness, ThicknessType);
     }
     {
-        // 1. Thân gạch
+        // 1. Brick body
         fCuboid(context, id + "base_box", {
             "corner1": vector(0, 0, 0) * millimeter,
-            "corner2": vector(31.8, 15.8, 9.6) * millimeter   // kích thước LEGO 2×4
+            "corner2": vector(31.8, 15.8, 9.6) * millimeter   // LEGO 2x4 dimensions
         });
 
-        // 2. Tạo 1 stud và pattern 4×2
+        // 2. Create 1 stud and pattern 4x2
         fCylinder(context, id + "top_stud", {
             "bottomCenter": vector(4, 4, 9.6) * millimeter,
-            "topCenter":    vector(4, 4, 11.3) * millimeter,  // 9.6 + chiều cao stud 1.7mm
+            "topCenter":    vector(4, 4, 11.3) * millimeter,  // 9.6 + stud height 1.7mm
             "radius":       2.4 * millimeter
         });
 
-        // Chuẩn bị mảng transforms và tên instance cho 8 studs
+        // Prepare transforms array and instance names for 8 studs
         var transforms = [];
         var names = [];
         for (var i = 0; i < 4; i += 1)
@@ -193,3 +193,1172 @@ export const lego2x4Brick = defineFeature(function(context is Context, id is Id,
             "instanceNames":             names,
             "copyPropertiesAndAttributes": true
         });
+
+#Example rectangular with filleted edges
+// Processing time: 64.54 seconds
+
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Rectangular Prism with Filleted Edges" }
+export const rectangularPrismWithFilletedEdges = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create the base box of 100×50×20 millimeter
+        fCuboid(context, id + "baseBox", {
+            "corner1" : vector(0, 0, 0) * millimeter,
+            "corner2" : vector(100, 50, 20) * millimeter
+        });
+        
+        opFillet(context, id + "fillet1", {
+                "entities" : qCreatedBy(id + "baseBox", EntityType.EDGE),
+                "radius" : 5 * millimeter
+        });
+    });
+
+#Examble Rectangular Prism with Central and Corner Through Holes and Filleted Edges
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Rectangular Prism with Central and Corner Through Holes and Filleted Edges" }
+export const rectangularPrismWithHolesAndFillets = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        fCuboid(context, id + "baseBox", {
+                "corner1" : vector(0, 0, 0) * millimeter,
+                "corner2" : vector(20, 30, 40) * millimeter
+        });
+        fCylinder(context, id + "centralHole", {
+                "topCenter" : vector(10, 15, 40) * millimeter,
+                "bottomCenter" : vector(10, 15, 0) * millimeter,
+                "radius" : 2.5 * millimeter
+        });
+        opBoolean(context, id + "cutCenter", {
+                "tools" : qCreatedBy(id + "centralHole", EntityType.BODY),
+                "targets" : qCreatedBy(id + "baseBox", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        fCylinder(context, id + "cornerHole1", {
+                "topCenter" : vector(5, 5, 40) * millimeter,
+                "bottomCenter" : vector(5, 5, 0) * millimeter,
+                "radius" : 2.5 * millimeter
+        });
+        opBoolean(context, id + "cutCorner1", {
+                "tools" : qCreatedBy(id + "cornerHole1", EntityType.BODY),
+                "targets" : qCreatedBy(id + "baseBox", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        fCylinder(context, id + "cornerHole2", {
+                "topCenter" : vector(15, 5, 40) * millimeter,
+                "bottomCenter" : vector(15, 5, 0) * millimeter,
+                "radius" : 2.5 * millimeter
+        });
+        opBoolean(context, id + "cutCorner2", {
+                "tools" : qCreatedBy(id + "cornerHole2", EntityType.BODY),
+                "targets" : qCreatedBy(id + "baseBox", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        fCylinder(context, id + "cornerHole3", {
+                "topCenter" : vector(5, 25, 40) * millimeter,
+                "bottomCenter" : vector(5, 25, 0) * millimeter,
+                "radius" : 2.5 * millimeter
+        });
+        opBoolean(context, id + "cutCorner3", {
+                "tools" : qCreatedBy(id + "cornerHole3", EntityType.BODY),
+                "targets" : qCreatedBy(id + "baseBox", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        fCylinder(context, id + "cornerHole4", {
+                "topCenter" : vector(15, 25, 40) * millimeter,
+                "bottomCenter" : vector(15, 25, 0) * millimeter,
+                "radius" : 2.5 * millimeter
+        });
+        opBoolean(context, id + "cutCorner4", {
+                "tools" : qCreatedBy(id + "cornerHole4", EntityType.BODY),
+                "targets" : qCreatedBy(id + "baseBox", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        
+        opFillet(context, id + "fillet1", {
+                "entities" : qCreatedBy(id + "baseBox", EntityType.EDGE),
+                "radius" : 1 * millimeter
+        });
+    });
+
+    // Remixed Box with Filleted Edges and Central Hole
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Box with Filleted Edges and Central Hole" }
+export const boxWithFilletedEdgesAndCentralHole = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create base box
+        fCuboid(context, id + "baseBox", {
+                "corner1" : vector(0, 0, 0) * inch,
+                "corner2" : vector(2, 1, 0.5) * inch
+        });
+        
+        // Create central hole
+        fCylinder(context, id + "centralHole", {
+                "topCenter" : vector(1, 0.5, 0.5) * inch,
+                "bottomCenter" : vector(1, 0.5, 0) * inch,
+                "radius" : 0.25 * inch
+        });
+        
+        // Subtract hole from box
+        opBoolean(context, id + "cutCenter", {
+                "tools" : qCreatedBy(id + "centralHole", EntityType.BODY),
+                "targets" : qCreatedBy(id + "baseBox", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        
+        // Add fillets to edges
+        opFillet(context, id + "fillet1", {
+                "entities" : qCreatedBy(id + "baseBox", EntityType.EDGE),
+                "radius" : 0.1 * inch
+        });
+    });
+
+// Remixed Pattern of Spheres on Base Plate
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Pattern of Spheres on Base Plate" }
+export const spheresOnBasePlate = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create base plate
+        fCuboid(context, id + "baseBox", {
+                "corner1" : vector(0, 0, 0) * millimeter,
+                "corner2" : vector(50, 50, 5) * millimeter
+        });
+        
+        // Create first sphere
+        opSphere(context, id + "sphere1", {
+                "radius" : 4 * millimeter,
+                "center" : vector(10, 10, 5) * millimeter
+        });
+        
+        // Create pattern of spheres
+        var transforms = [];
+        var names = [];
+        for (var i = 0; i < 3; i += 1)
+        {
+            for (var j = 0; j < 3; j += 1)
+            {
+                if (i == 0 && j == 0) continue; // Skip the first position as we already created it
+                transforms = append(transforms,
+                    transform(vector(i * 15, j * 15, 0) * millimeter)
+                );
+                names = append(names, "sphere_" ~ i ~ "_" ~ j);
+            }
+        }
+        
+        opPattern(context, id + "sphere_pattern", {
+            "entities" : qCreatedBy(id + "sphere1", EntityType.BODY),
+            "transforms" : transforms,
+            "instanceNames" : names,
+            "copyPropertiesAndAttributes" : true
+        });
+    });
+
+// Remixed Combination of Cylinder and Sphere with Boolean Operations
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Combined Cylinder and Sphere" }
+export const combinedCylinderAndSphere = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create cylinder
+        fCylinder(context, id + "cylinder1", {
+                "topCenter" : vector(0, 0, 20) * millimeter,
+                "bottomCenter" : vector(0, 0, 0) * millimeter,
+                "radius" : 10 * millimeter
+        });
+        
+        // Create sphere at top of cylinder
+        opSphere(context, id + "sphere1", {
+                "radius" : 15 * millimeter,
+                "center" : vector(0, 0, 20) * millimeter
+        });
+        
+        // Create sphere for subtraction (to make a dimple)
+        opSphere(context, id + "sphere2", {
+                "radius" : 8 * millimeter,
+                "center" : vector(0, 0, 25) * millimeter
+        });
+        
+        // Subtract sphere2 from sphere1
+        opBoolean(context, id + "boolean1", {
+            "tools" : qCreatedBy(id + "sphere2", EntityType.BODY),
+            "targets" : qCreatedBy(id + "sphere1", EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION 
+        });
+    });
+
+// Remixed Box with Multiple Corner Through Holes and Central Hole
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Box with Multiple Through Holes" }
+export const boxWithMultipleHoles = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create base box
+        fCuboid(context, id + "baseBox", {
+            "corner1" : vector(0, 0, 0) * millimeter,
+            "corner2" : vector(40, 40, 10) * millimeter
+        });
+        
+        // Create central hole
+        fCylinder(context, id + "centralHole", {
+            "bottomCenter" : vector(20, 20, 0) * millimeter,
+            "topCenter"    : vector(20, 20, 10) * millimeter,
+            "radius"       : 5 * millimeter
+        });
+        
+        // Create four corner holes
+        fCylinder(context, id + "cornerHole1", {
+            "bottomCenter" : vector(5, 5, 0) * millimeter,
+            "topCenter"    : vector(5, 5, 10) * millimeter,
+            "radius"       : 2 * millimeter
+        });
+        fCylinder(context, id + "cornerHole2", {
+            "bottomCenter" : vector(35, 5, 0) * millimeter,
+            "topCenter"    : vector(35, 5, 10) * millimeter,
+            "radius"       : 2 * millimeter
+        });
+        fCylinder(context, id + "cornerHole3", {
+            "bottomCenter" : vector(35, 35, 0) * millimeter,
+            "topCenter"    : vector(35, 35, 10) * millimeter,
+            "radius"       : 2 * millimeter
+        });
+        fCylinder(context, id + "cornerHole4", {
+            "bottomCenter" : vector(5, 35, 0) * millimeter,
+            "topCenter"    : vector(5, 35, 10) * millimeter,
+            "radius"       : 2 * millimeter
+        });
+        
+        // Subtract all holes
+        opBoolean(context, id + "cutCenter", {
+            "tools"         : qCreatedBy(id + "centralHole", EntityType.BODY),
+            "targets"       : qCreatedBy(id + "baseBox", EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        
+        opBoolean(context, id + "cutCorner1", {
+            "tools"         : qCreatedBy(id + "cornerHole1", EntityType.BODY),
+            "targets"       : qCreatedBy(id + "baseBox", EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        
+        opBoolean(context, id + "cutCorner2", {
+            "tools"         : qCreatedBy(id + "cornerHole2", EntityType.BODY),
+            "targets"       : qCreatedBy(id + "baseBox", EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        
+        opBoolean(context, id + "cutCorner3", {
+            "tools"         : qCreatedBy(id + "cornerHole3", EntityType.BODY),
+            "targets"       : qCreatedBy(id + "baseBox", EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        
+        opBoolean(context, id + "cutCorner4", {
+            "tools"         : qCreatedBy(id + "cornerHole4", EntityType.BODY),
+            "targets"       : qCreatedBy(id + "baseBox", EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        
+        // Add fillets to all edges
+        opFillet(context, id + "fillet1", {
+            "entities" : qCreatedBy(id + "baseBox", EntityType.EDGE),            
+            "radius" : 1 * millimeter
+        });
+    });
+
+// Remixed LEGO 2x8 Brick
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "LEGO 2x8 Brick"}
+export const lego2x8Brick = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Base brick body
+        fCuboid(context, id + "base_box", {
+            "corner1": vector(0, 0, 0) * millimeter,
+            "corner2": vector(63.6, 15.8, 9.6) * millimeter   // double length of 2x4
+        });
+
+        // Create the first stud
+        fCylinder(context, id + "top_stud", {
+            "bottomCenter": vector(4, 4, 9.6) * millimeter,
+            "topCenter":    vector(4, 4, 11.3) * millimeter,
+            "radius":       2.4 * millimeter
+        });
+
+        // Pattern for 8x2=16 studs
+        var transforms = [];
+        var names = [];
+        for (var i = 0; i < 8; i += 1)
+        {
+            for (var j = 0; j < 2; j += 1)
+            {
+                transforms = append(transforms,
+                    transform(vector(i * 8, j * 8, 0) * millimeter)
+                );
+                names = append(names, "stud_" ~ i ~ "_" ~ j);
+            }
+        }
+        
+        opPattern(context, id + "stud_pattern", {
+            "entities":                  qCreatedBy(id + "top_stud", EntityType.BODY),
+            "transforms":                transforms,
+            "instanceNames":             names,
+            "copyPropertiesAndAttributes": true
+        });
+    });
+
+#Examble Patterned Cylinders on Base Plate with Central Sphere
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Patterned Cylinders on Base Plate with Central Sphere" }
+export const patternedCylindersWithCentralSphere = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create base plate
+        fCuboid(context, id + "basePlate", {
+            "corner1" : vector(0, 0, 0) * millimeter,
+            "corner2" : vector(100, 100, 10) * millimeter
+        });
+        
+        // Create central sphere
+        opSphere(context, id + "centralSphere", {
+            "center" : vector(50, 50, 20) * millimeter,
+            "radius" : 15 * millimeter
+        });
+        
+        // Create first cylinder
+        fCylinder(context, id + "cylinder1", {
+            "bottomCenter" : vector(20, 20, 10) * millimeter,
+            "topCenter" : vector(20, 20, 25) * millimeter,
+            "radius" : 5 * millimeter
+        });
+        
+        // Pattern cylinders in a circular arrangement
+        var transforms = [];
+        var names = [];
+        var numCylinders = 8;
+        
+        for (var i = 0; i < numCylinders; i += 1)
+        {
+            var angle = i * (360 / numCylinders) * degree;
+            var x = 50 + 30 * cos(angle);
+            var y = 50 + 30 * sin(angle);
+            
+            transforms = append(transforms,
+                transform(vector(x - 20, y - 20, 0) * millimeter)
+            );
+            names = append(names, "cylinder_" ~ (i + 1));
+        }
+        
+        opPattern(context, id + "cylinderPattern", {
+            "entities" : qCreatedBy(id + "cylinder1", EntityType.BODY),
+            "transforms" : transforms,
+            "instanceNames" : names,
+            "copyPropertiesAndAttributes" : true
+        });
+    });
+
+#examble LEGO Corner Plate 6x6
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "LEGO Corner Plate 6x6" }
+export const legoCornerPlate6x6 = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create base plate
+        fCuboid(context, id + "basePlate", {
+            "corner1" : vector(0, 0, 0) * millimeter,
+            "corner2" : vector(48, 48, 3.2) * millimeter
+        });
+        
+        // Create corner cutout
+        fCuboid(context, id + "cornerCutout", {
+            "corner1" : vector(24, 24, 0) * millimeter,
+            "corner2" : vector(48, 48, 3.2) * millimeter
+        });
+        
+        // Subtract corner
+        opBoolean(context, id + "cutCorner", {
+            "tools" : qCreatedBy(id + "cornerCutout", EntityType.BODY),
+            "targets" : qCreatedBy(id + "basePlate", EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        
+        // Create first stud
+        fCylinder(context, id + "stud", {
+            "bottomCenter" : vector(4, 4, 3.2) * millimeter,
+            "topCenter" : vector(4, 4, 4.9) * millimeter,
+            "radius" : 2.4 * millimeter
+        });
+        
+        // Pattern studs, skipping the corner
+        var transforms = [];
+        var names = [];
+        
+        for (var i = 0; i < 6; i += 1)
+        {
+            for (var j = 0; j < 6; j += 1)
+            {
+                // Skip studs in the cut corner
+                if (i >= 3 && j >= 3) continue;
+                
+                transforms = append(transforms,
+                    transform(vector(i * 8, j * 8, 0) * millimeter)
+                );
+                names = append(names, "stud_" ~ i ~ "_" ~ j);
+            }
+        }
+        
+        opPattern(context, id + "studPattern", {
+            "entities" : qCreatedBy(id + "stud", EntityType.BODY),
+            "transforms" : transforms,
+            "instanceNames" : names,
+            "copyPropertiesAndAttributes" : true
+        });
+    });
+
+#Examble Double Sphere with Connecting Cylinder
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Double Sphere with Connecting Cylinder" }
+export const doubleSpheresWithCylinder = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create first sphere
+        opSphere(context, id + "sphere1", {
+            "center" : vector(0, 0, 0) * inch,
+            "radius" : 1 * inch
+        });
+        
+        // Create second sphere
+        opSphere(context, id + "sphere2", {
+            "center" : vector(3, 0, 0) * inch,
+            "radius" : 0.75 * inch
+        });
+        
+        // Create connecting cylinder
+        fCylinder(context, id + "connector", {
+            "bottomCenter" : vector(0, 0, 0) * inch,
+            "topCenter" : vector(3, 0, 0) * inch,
+            "radius" : 0.5 * inch
+        });
+    });
+
+# Example: Cylinder with Sphere and Box Subtractions
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Cylinder with Multiple Cuts" }
+export const cylinderWithMultipleCuts = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create base cylinder
+        fCylinder(context, id + "baseCylinder", {
+                "bottomCenter" : vector(0, 0, 0) * inch,
+                "topCenter" : vector(0, 0, 5) * inch,
+                "radius" : 2 * inch
+        });
+
+        // Create sphere for subtraction (e.g., scoop from the top)
+        opSphere(context, id + "topScoopSphere", {
+                "radius" : 1.5 * inch,
+                "center" : vector(0, 0, 4.5) * inch // Center near the top
+        });
+        opBoolean(context, id + "cutSphere", {
+            "tools" : qCreatedBy(id + "topScoopSphere", EntityType.BODY),
+            "targets" : qCreatedBy(id + "baseCylinder", EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION
+        });
+
+        // Create a box for subtraction (e.g., a slot through the side)
+        fCuboid(context, id + "sideSlotBox", {
+            "corner1" : vector(-0.5, -2.5, 1) * inch, // Starts outside radius
+            "corner2" : vector(0.5, 2.5, 2) * inch   // Ends outside radius, creates slot
+        });
+         opBoolean(context, id + "cutBox", {
+            "tools" : qCreatedBy(id + "sideSlotBox", EntityType.BODY),
+            "targets" : qCreatedBy(id + "baseCylinder", EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION
+        });
+
+         // Create another smaller cylinder for a through hole
+         fCylinder(context, id + "axialHole", {
+                "bottomCenter" : vector(0, 0, 0) * inch,
+                "topCenter" : vector(0, 0, 5) * inch,
+                "radius" : 0.5 * inch
+        });
+         opBoolean(context, id + "cutAxialHole", {
+                "tools" : qCreatedBy(id + "axialHole", EntityType.BODY),
+                "targets" : qCreatedBy(id + "baseCylinder", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+    });
+
+# Example 11: Box with Multiple Hole Types and Fillets
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Complex Box with Holes, Sphere Cut, and Fillets" }
+export const complexBoxWithHolesSphereCutFillets = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create base box
+        fCuboid(context, id + "baseBox", {
+                "corner1" : vector(0, 0, 0) * millimeter,
+                "corner2" : vector(50, 40, 30) * millimeter
+        });
+
+        // Create central cylindrical hole
+        fCylinder(context, id + "centralHole", {
+                "bottomCenter" : vector(25, 20, 0) * millimeter,
+                "topCenter"    : vector(25, 20, 30) * millimeter,
+                "radius"       : 8 * millimeter
+        });
+        opBoolean(context, id + "cutCenter", {
+                "tools" : qCreatedBy(id + "centralHole", EntityType.BODY),
+                "targets" : qCreatedBy(id + "baseBox", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+
+        // Create two corner cylindrical holes
+        fCylinder(context, id + "cornerHole1", {
+                "bottomCenter" : vector(5, 5, 0) * millimeter,
+                "topCenter"    : vector(5, 5, 30) * millimeter,
+                "radius"       : 3 * millimeter
+        });
+        opBoolean(context, id + "cutCorner1", {
+                "tools" : qCreatedBy(id + "cornerHole1", EntityType.BODY),
+                "targets" : qCreatedBy(id + "baseBox", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        fCylinder(context, id + "cornerHole2", {
+                "bottomCenter" : vector(45, 35, 0) * millimeter,
+                "topCenter"    : vector(45, 35, 30) * millimeter,
+                "radius"       : 3 * millimeter
+        });
+        opBoolean(context, id + "cutCorner2", {
+                "tools" : qCreatedBy(id + "cornerHole2", EntityType.BODY),
+                "targets" : qCreatedBy(id + "baseBox", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+
+        // Create sphere for subtraction (e.g., a dimple on top)
+        opSphere(context, id + "sphereCut", {
+                "radius" : 10 * millimeter,
+                "center" : vector(25, 20, 30) * millimeter // Centered on top face
+        });
+        opBoolean(context, id + "cutSphere", {
+            "tools" : qCreatedBy(id + "sphereCut", EntityType.BODY),
+            "targets" : qCreatedBy(id + "baseBox", EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION
+        });
+
+        // Add fillets to remaining edges of the modified base box
+        opFillet(context, id + "filletFinal", {
+                "entities" : qCreatedBy(id + "baseBox", EntityType.EDGE), // Fillets edges of the final state of baseBox
+                "radius" : 2 * millimeter
+        });
+    });
+#Example opFillet after Boolean
+        opFillet(context, id + "fillet", {
+                "entities" : qCreatedBy(id + "cutCenter", EntityType.EDGE),
+                "radius"   : 2 * millimeter
+        });
+
+#Example L-shape
+FeatureScript 2625;
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "L-shape", "Feature Type Description" : "" }
+export const myFeature = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        // Define the parameters of the feature type
+    }
+    {
+        // Sketch on the Top face
+        var sketch = newSketch(context, id + "sketch", {
+            "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+        });
+
+        
+        skPolyline(sketch, "polyline1", {
+                "points" : [
+                    vector(0, 0) * inch,
+                    vector(0, 10) * inch,
+                    vector(0.5, 10) * inch,
+                    vector(0.5, 0.5) * inch,
+                    vector(10, 0.5) * inch,
+                    vector(10, 0) * inch,
+                    vector(0, 0) * inch,
+                ]
+        });
+        skSolve(sketch);
+        
+        opExtrude(context, id + "extrude1", {
+                "entities" : qSketchRegion(id + "sketch"),
+                "direction" : vector(0,0,1),
+                "endBound" : BoundingType.BLIND,
+                "endDepth" : 8 * inch
+        });
+        
+       
+        // Get all edges of the box
+        const allEdges = evaluateQuery(context, qCreatedBy(id + "extrude1", EntityType.EDGE));
+        
+
+        var edgesToFillet = [];
+        edgesToFillet = append(edgesToFillet, allEdges[0]);
+        edgesToFillet = append(edgesToFillet, allEdges[3]);
+        
+        // Apply fillet to the edges (except the last one)
+        opFillet(context, id + "fillet1", {
+            "entities" : qUnion(edgesToFillet),
+            "radius" : 0.5 * inch
+        });
+    });
+
+#Example opBoolean UNION
+        opBoolean(context, id + "boolean1", {
+                "tools" : qUnion(qCreatedBy(id + "cuboid1", EntityType.BODY), qCreatedBy(id + "cylinder1", EntityType.BODY)),
+                "operationType" : BooleanOperationType.UNION
+        });
+
+#Example L-shape with filleted edges and 4 holes per face
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "L-Shaped Bracket with Filleted Edges and Four Holes per Face" }
+export const lShapedBracketWithHolesAndFillets = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        fCuboid(context, id + "horizontalLeg", {
+                "corner1" : vector(0, 0, 0) * millimeter,
+                "corner2" : vector(60, 30, 5) * millimeter
+        });
+        fCuboid(context, id + "verticalLeg", {
+                "corner1" : vector(60, 0, 0) * millimeter,
+                "corner2" : vector(90, 40, 5) * millimeter
+        });
+        opBoolean(context, id + "unionLegs", {
+                "tools" : qUnion(qCreatedBy(id + "horizontalLeg", EntityType.BODY), qCreatedBy(id + "verticalLeg", EntityType.BODY)),
+                "operationType" : BooleanOperationType.UNION
+        });
+        opFillet(context, id + "filletEdges", {
+                "entities" : qCreatedBy(id + "unionLegs", EntityType.EDGE),
+                "radius" : 3 * millimeter
+        });
+        fCylinder(context, id + "horHole1", {
+                "bottomCenter" : vector(10, 10, 0) * millimeter,
+                "topCenter" : vector(10, 10, 5) * millimeter,
+                "radius" : 3 * millimeter
+        });
+        opBoolean(context, id + "cutHorHole1", {
+                "tools" : qCreatedBy(id + "horHole1", EntityType.BODY),
+                "targets" : qCreatedBy(id + "horizontalLeg", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        fCylinder(context, id + "horHole2", {
+                "bottomCenter" : vector(50, 10, 0) * millimeter,
+                "topCenter" : vector(50, 10, 5) * millimeter,
+                "radius" : 3 * millimeter
+        });
+        opBoolean(context, id + "cutHorHole2", {
+                "tools" : qCreatedBy(id + "horHole2", EntityType.BODY),
+                "targets" : qCreatedBy(id + "horizontalLeg", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        fCylinder(context, id + "horHole3", {
+                "bottomCenter" : vector(50, 20, 0) * millimeter,
+                "topCenter" : vector(50, 20, 5) * millimeter,
+                "radius" : 3 * millimeter
+        });
+        opBoolean(context, id + "cutHorHole3", {
+                "tools" : qCreatedBy(id + "horHole3", EntityType.BODY),
+                "targets" : qCreatedBy(id + "horizontalLeg", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        fCylinder(context, id + "horHole4", {
+                "bottomCenter" : vector(10, 20, 0) * millimeter,
+                "topCenter" : vector(10, 20, 5) * millimeter,
+                "radius" : 3 * millimeter
+        });
+        opBoolean(context, id + "cutHorHole4", {
+                "tools" : qCreatedBy(id + "horHole4", EntityType.BODY),
+                "targets" : qCreatedBy(id + "horizontalLeg", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        fCylinder(context, id + "verHole1", {
+                "bottomCenter" : vector(70, 10, 0) * millimeter,
+                "topCenter" : vector(70, 10, 5) * millimeter,
+                "radius" : 3 * millimeter
+        });
+        opBoolean(context, id + "cutVerHole1", {
+                "tools" : qCreatedBy(id + "verHole1", EntityType.BODY),
+                "targets" : qCreatedBy(id + "horizontalLeg", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        fCylinder(context, id + "verHole2", {
+                "bottomCenter" : vector(80, 10, 0) * millimeter,
+                "topCenter" : vector(80, 10, 5) * millimeter,
+                "radius" : 3 * millimeter
+        });
+        opBoolean(context, id + "cutVerHole2", {
+                "tools" : qCreatedBy(id + "verHole2", EntityType.BODY),
+                "targets" : qCreatedBy(id + "horizontalLeg", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        fCylinder(context, id + "verHole3", {
+                "bottomCenter" : vector(80, 30, 0) * millimeter,
+                "topCenter" : vector(80, 30, 5) * millimeter,
+                "radius" : 3 * millimeter
+        });
+        opBoolean(context, id + "cutVerHole3", {
+                "tools" : qCreatedBy(id + "verHole3", EntityType.BODY),
+                "targets" : qCreatedBy(id + "horizontalLeg", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        fCylinder(context, id + "verHole4", {
+                "bottomCenter" : vector(70, 30, 0) * millimeter,
+                "topCenter" : vector(70, 30, 5) * millimeter,
+                "radius" : 3 * millimeter
+        });
+        opBoolean(context, id + "cutVerHole4", {
+                "tools" : qCreatedBy(id + "verHole4", EntityType.BODY),
+                "targets" : qCreatedBy(id + "horizontalLeg", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+    });
+
+#Examble Cylinder with Box and L-Shape Cuts
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Cylinder with Box and L-Shape Cuts" }
+export const cylinderWithBoxLShapeCuts = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create base cylinder (from Cylinder with Multiple Cuts)
+        fCylinder(context, id + "baseCylinder", {
+                "bottomCenter" : vector(0, 0, 0) * inch,
+                "topCenter" : vector(0, 0, 5) * inch,
+                "radius" : 2 * inch
+        });
+
+        // Create box for subtraction (from Cylinder with Multiple Cuts)
+        fCuboid(context, id + "sideSlotBox", {
+                "corner1" : vector(-0.5, -2.5, 1) * inch,
+                "corner2" : vector(0.5, 2.5, 2) * inch
+        });
+        opBoolean(context, id + "cutBox", {
+            "tools" : qCreatedBy(id + "sideSlotBox", EntityType.BODY),
+            "targets" : qCreatedBy(id + "baseCylinder", EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION
+        });
+
+        // Create L-shape sketch and extrude for subtraction (from L-shape)
+        var sketch = newSketch(context, id + "lShapeSketch", {
+            "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+        });
+        skPolyline(sketch, "polylineL", {
+                "points" : [
+                    vector(-1, -1) * inch,
+                    vector(-1, 3) * inch,
+                    vector(-0.5, 3) * inch,
+                    vector(-0.5, -0.5) * inch,
+                    vector(3, -0.5) * inch,
+                    vector(3, -1) * inch,
+                    vector(-1, -1) * inch
+                ]
+        });
+        skSolve(sketch);
+        opExtrude(context, id + "lShapeExtrude", {
+                "entities" : qSketchRegion(id + "lShapeSketch"),
+                "direction" : vector(0, 0, 1),
+                "endBound" : BoundingType.BLIND,
+                "endDepth" : 5 * inch
+        });
+        opBoolean(context, id + "cutLShape", {
+            "tools" : qCreatedBy(id + "lShapeExtrude", EntityType.BODY),
+            "targets" : qCreatedBy(id + "baseCylinder", EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION
+        });
+
+        // Add fillets to edges (from L-shape)
+        const allEdges = evaluateQuery(context, qCreatedBy(id + "baseCylinder", EntityType.EDGE));
+        var edgesToFillet = [];
+        if (size(allEdges) > 3) {
+            edgesToFillet = append(edgesToFillet, allEdges[0]);
+            edgesToFillet = append(edgesToFillet, allEdges[3]);
+        }
+        opFillet(context, id + "filletEdges", {
+            "entities" : qUnion(edgesToFillet),
+            "radius" : 0.5 * inch
+        });
+    });
+
+#Example L-Shape with Box and Cylindrical Cuts
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "L-Shape with Box and Cylindrical Cuts" }
+export const lShapeWithBoxCylinderCuts = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create L-shape sketch and extrude (from L-shape)
+        var sketch = newSketch(context, id + "lShapeSketch", {
+            "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+        });
+        skPolyline(sketch, "polylineL", {
+                "points" : [
+                    vector(0, 0) * inch,
+                    vector(0, 10) * inch,
+                    vector(0.5, 10) * inch,
+                    vector(0.5, 0.5) * inch,
+                    vector(10, 0.5) * inch,
+                    vector(10, 0) * inch,
+                    vector(0, 0) * inch
+                ]
+        });
+        skSolve(sketch);
+        opExtrude(context, id + "lShapeExtrude", {
+                "entities" : qSketchRegion(id + "lShapeSketch"),
+                "direction" : vector(0, 0, 1),
+                "endBound" : BoundingType.BLIND,
+                "endDepth" : 8 * inch
+        });
+
+        // Create box for subtraction (from Cylinder with Multiple Cuts)
+        fCuboid(context, id + "slotBox", {
+                "corner1" : vector(2, -0.5, 2) * inch,
+                "corner2" : vector(8, 0.5, 4) * inch
+        });
+        opBoolean(context, id + "cutBox", {
+            "tools" : qCreatedBy(id + "slotBox", EntityType.BODY),
+            "targets" : qCreatedBy(id + "lShapeExtrude", EntityType.BODY),
+            "operationType" : BooleanOperationType.SUBTRACTION
+        });
+
+        // Create cylinder for subtraction (from Complex Box with Holes)
+        fCylinder(context, id + "centralHole", {
+                "bottomCenter" : vector(5, 5, 0) * inch,
+                "topCenter" : vector(5, 5, 8) * inch,
+                "radius" : 1 * inch
+        });
+        opBoolean(context, id + "cutCylinder", {
+                "tools" : qCreatedBy(id + "centralHole", EntityType.BODY),
+                "targets" : qCreatedBy(id + "lShapeExtrude", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+
+        // Add fillets to edges (from L-shape)
+        const allEdges = evaluateQuery(context, qCreatedBy(id + "lShapeExtrude", EntityType.EDGE));
+        var edgesToFillet = [];
+        if (size(allEdges) > 3) {
+            edgesToFillet = append(edgesToFillet, allEdges[0]);
+            edgesToFillet = append(edgesToFillet, allEdges[3]);
+        }
+        opFillet(context, id + "filletEdges", {
+            "entities" : qUnion(edgesToFillet),
+            "radius" : 0.5 * inch
+        });
+    });
+
+#Example LEGO 4x4 Brick with Corner Cutout
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "LEGO 4x4 Brick with Corner Cutout"}
+export const lego4x4BrickWithCornerCutout = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Base brick body - 4x4 size
+        fCuboid(context, id + "base_box", {
+            "corner1": vector(0, 0, 0) * millimeter,
+            "corner2": vector(31.8, 31.8, 9.6) * millimeter   // LEGO 4x4 dimensions
+        });
+        
+        // Create corner cutout like the corner plate example
+        fCuboid(context, id + "cornerCutout", {
+            "corner1": vector(24, 24, 0) * millimeter,
+            "corner2": vector(31.8, 31.8, 9.6) * millimeter
+        });
+        
+        // Subtract corner
+        opBoolean(context, id + "cutCorner", {
+            "tools": qCreatedBy(id + "cornerCutout", EntityType.BODY),
+            "targets": qCreatedBy(id + "base_box", EntityType.BODY),
+            "operationType": BooleanOperationType.SUBTRACTION
+        });
+
+        // Create first stud
+        fCylinder(context, id + "top_stud", {
+            "bottomCenter": vector(4, 4, 9.6) * millimeter,
+            "topCenter":    vector(4, 4, 11.3) * millimeter,  // 9.6 + stud height 1.7mm
+            "radius":       2.4 * millimeter
+        });
+
+        // Pattern studs, skipping the cut corner
+        var transforms = [];
+        var names = [];
+        for (var i = 0; i < 4; i += 1)
+        {
+            for (var j = 0; j < 4; j += 1)
+            {
+                // Skip studs in the cut corner
+                if (i >= 3 && j >= 3) continue;
+                
+                transforms = append(transforms,
+                    transform(vector(i * 8, j * 8, 0) * millimeter)
+                );
+                names = append(names, "stud_" ~ i ~ "_" ~ j);
+            }
+        }
+        
+        opPattern(context, id + "stud_pattern", {
+            "entities": qCreatedBy(id + "top_stud", EntityType.BODY),
+            "transforms": transforms,
+            "instanceNames": names,
+            "copyPropertiesAndAttributes": true
+        });
+    });
+
+#Example LEGO 2x6 Brick with Central Hole
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "LEGO 2x6 Brick with Central Hole"}
+export const lego2x6BrickWithCentralHole = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Base brick body - 2x6 size
+        fCuboid(context, id + "base_box", {
+            "corner1": vector(0, 0, 0) * millimeter,
+            "corner2": vector(47.7, 15.8, 9.6) * millimeter   // LEGO 2x6 dimensions
+        });
+        
+        // Create central hole cylinder
+        fCylinder(context, id + "centralHole", {
+            "bottomCenter": vector(23.85, 7.9, 0) * millimeter,
+            "topCenter":    vector(23.85, 7.9, 9.6) * millimeter,
+            "radius":       4 * millimeter
+        });
+        
+        // Subtract the central hole from the base box
+        opBoolean(context, id + "cutCenter", {
+            "tools": qCreatedBy(id + "centralHole", EntityType.BODY),
+            "targets": qCreatedBy(id + "base_box", EntityType.BODY),
+            "operationType": BooleanOperationType.SUBTRACTION
+        });
+
+        // Create first stud
+        fCylinder(context, id + "top_stud", {
+            "bottomCenter": vector(4, 4, 9.6) * millimeter,
+            "topCenter":    vector(4, 4, 11.3) * millimeter,  // 9.6 + stud height 1.7mm
+            "radius":       2.4 * millimeter
+        });
+
+        // Pattern studs in a 6x2 grid
+        var transforms = [];
+        var names = [];
+        for (var i = 0; i < 6; i += 1)
+        {
+            for (var j = 0; j < 2; j += 1)
+            {
+                transforms = append(transforms,
+                    transform(vector(i * 8, j * 8, 0) * millimeter)
+                );
+                names = append(names, "stud_" ~ i ~ "_" ~ j);
+            }
+        }
+        
+        opPattern(context, id + "stud_pattern", {
+            "entities": qCreatedBy(id + "top_stud", EntityType.BODY),
+            "transforms": transforms,
+            "instanceNames": names,
+            "copyPropertiesAndAttributes": true
+        });
+    });
+
+#Example LEGO 2x2 Brick with Filleted Edges
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "LEGO 2x2 Brick with Filleted Edges"}
+export const lego2x2BrickWithFilletedEdges = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Base brick body - 2x2 size
+        fCuboid(context, id + "base_box", {
+            "corner1": vector(0, 0, 0) * millimeter,
+            "corner2": vector(15.8, 15.8, 9.6) * millimeter   // LEGO 2x2 dimensions
+        });
+        
+        // Create first stud
+        fCylinder(context, id + "top_stud", {
+            "bottomCenter": vector(4, 4, 9.6) * millimeter,
+            "topCenter":    vector(4, 4, 11.3) * millimeter,  // 9.6 + stud height 1.7mm
+            "radius":       2.4 * millimeter
+        });
+
+        // Pattern studs in a 2x2 grid
+        var transforms = [];
+        var names = [];
+        for (var i = 0; i < 2; i += 1)
+        {
+            for (var j = 0; j < 2; j += 1)
+            {
+                transforms = append(transforms,
+                    transform(vector(i * 8, j * 8, 0) * millimeter)
+                );
+                names = append(names, "stud_" ~ i ~ "_" ~ j);
+            }
+        }
+        
+        opPattern(context, id + "stud_pattern", {
+            "entities": qCreatedBy(id + "top_stud", EntityType.BODY),
+            "transforms": transforms,
+            "instanceNames": names,
+            "copyPropertiesAndAttributes": true
+        });
+        
+        // Add fillets to edges (combining with the fillet example)
+        opFillet(context, id + "fillet1", {
+            "entities": qCreatedBy(id + "base_box", EntityType.EDGE),
+            "radius": 0.8 * millimeter
+        });
+    });
+
+#Example LEGO 2x3 L-Shaped Plate
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "LEGO 2x3 L-Shaped Plate" }
+export const lego2x3LShapedPlate = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create L-shaped plate (combining LEGO and L-shape examples)
+        // First horizontal leg
+        fCuboid(context, id + "horizontalLeg", {
+            "corner1": vector(0, 0, 0) * millimeter,
+            "corner2": vector(23.7, 15.8, 3.2) * millimeter  // 3x2 dimensions
+        });
+        
+        // Create cut block to make L-shape
+        fCuboid(context, id + "cutBlock", {
+            "corner1": vector(7.9, 7.9, 0) * millimeter,      // 1x1 position
+            "corner2": vector(23.7, 15.8, 3.2) * millimeter   // to corner
+        });
+        
+        // Subtract to create L-shape
+        opBoolean(context, id + "cutL", {
+            "tools": qCreatedBy(id + "cutBlock", EntityType.BODY),
+            "targets": qCreatedBy(id + "horizontalLeg", EntityType.BODY),
+            "operationType": BooleanOperationType.SUBTRACTION
+        });
+        
+        // Create first stud
+        fCylinder(context, id + "stud", {
+            "bottomCenter": vector(4, 4, 3.2) * millimeter,
+            "topCenter": vector(4, 4, 4.9) * millimeter,  // 3.2 + stud height 1.7mm
+            "radius": 2.4 * millimeter
+        });
+        
+        // Pattern studs, skipping the cutout area
+        var transforms = [];
+        var names = [];
+        for (var i = 0; i < 3; i += 1)
+        {
+            for (var j = 0; j < 2; j += 1)
+            {
+                // Skip studs in the cut area
+                if (i >= 1 && j >= 1) continue;
+                
+                transforms = append(transforms,
+                    transform(vector(i * 8, j * 8, 0) * millimeter)
+                );
+                names = append(names, "stud_" ~ i ~ "_" ~ j);
+            }
+        }
+        
+        opPattern(context, id + "studPattern", {
+            "entities": qCreatedBy(id + "stud", EntityType.BODY),
+            "transforms": transforms,
+            "instanceNames": names,
+            "copyPropertiesAndAttributes": true
+        });
+    });

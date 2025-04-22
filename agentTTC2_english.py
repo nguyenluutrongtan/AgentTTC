@@ -58,9 +58,9 @@ try:
     # advanced_llm = ChatDeepSeek(model=MODELS["advanced"], temperature=0)
     # expert_llm = ChatDeepSeek(model=MODELS["advanced"], temperature=0)
 
-    default_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="high")
-    advanced_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="high")
-    expert_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="high")
+    default_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="low")
+    advanced_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="low")
+    expert_llm = ChatOpenAI(model=MODELS["advanced"], reasoning_effort="low")
 
     # default_llm = ChatOpenAI(model=MODELS["advanced"], temperature=0)
     # advanced_llm = ChatOpenAI(model=MODELS["advanced"], temperature=0)
@@ -103,7 +103,7 @@ try:
     if faiss_path.exists() and any(faiss_path.iterdir()):
         print(f"💾 Loading existing FAISS index from: {FAISS_INDEX_PATH}")
         local_vector_store = FAISS.load_local(FAISS_INDEX_PATH, embeddings, allow_dangerous_deserialization=True)
-        local_retriever = local_vector_store.as_retriever(search_kwargs={"k": 5}) # Retrieve top 5 local results
+        local_retriever = local_vector_store.as_retriever(search_kwargs={"k": 25}) # Retrieve top 2 local results
         print("✅ Local FAISS index loaded successfully.")
     # Check if any of the source files exist to build the index
     elif guide_path.exists() or guide_path2.exists() or examples_path.exists():
@@ -115,33 +115,64 @@ try:
         print(f"🔧 Attempting to build FAISS index from: {', '.join(guide_files_found)}...")
 
         try:
-            combined_guide_content = ""
-            if guide_path.exists():
-                print(f"   - Reading content from '{LOCAL_GUIDE_PATH}'...")
-                combined_guide_content += guide_path.read_text(encoding='utf-8') + "\n\n"
-            if guide_path2.exists():
-                print(f"   - Reading content from '{LOCAL_GUIDE_PATH_2}'...")
-                combined_guide_content += guide_path2.read_text(encoding='utf-8') + "\n\n"
+            all_docs = []
+
+            # 1. Process example.txt: Split into individual examples
             if examples_path.exists():
-                print(f"   - Reading content from '{LOCAL_EXAMPLES_PATH}'...")
-                combined_guide_content += examples_path.read_text(encoding='utf-8') + "\n\n"
+                print(f"   - Processing examples from '{LOCAL_EXAMPLES_PATH}'...")
+                example_content = examples_path.read_text(encoding='utf-8')
+                # Split by lines starting with #, but keep the # line with the content
+                # Use positive lookahead to keep the delimiter
+                example_splits = re.split(r'(?=\n#)', example_content)
+                
+                for i, example_text in enumerate(example_splits):
+                    example_text = example_text.strip()
+                    if example_text:
+                        # Extract title from the first line (e.g., "#Simple box")
+                        first_line = example_text.split('\n', 1)[0]
+                        title = first_line.strip() if first_line.startswith("#") else f"Example {i+1}"
+                        metadata = {"source": LOCAL_EXAMPLES_PATH, "title": title}
+                        all_docs.append(Document(page_content=example_text, metadata=metadata))
+                print(f"   - Created {len(example_splits)} documents from examples.")
 
-            # Split the combined document into chunks
-            text_splitter = RecursiveCharacterTextSplitter(
-                chunk_size=1000, # Adjust chunk size as needed
-                chunk_overlap=100, # Adjust overlap as needed
-                length_function=len,
-            )
-            texts = text_splitter.split_text(combined_guide_content)
-            print(f"   - Split combined content into {len(texts)} chunks.")
+            # 2. Process guide.txt and guide2.txt: Combine and chunk
+            guide_content = ""
+            guide_sources = []
+            if guide_path.exists():
+                print(f"   - Reading guide content from '{LOCAL_GUIDE_PATH}'...")
+                guide_content += guide_path.read_text(encoding='utf-8') + "\n\n"
+                guide_sources.append(LOCAL_GUIDE_PATH)
+            if guide_path2.exists():
+                print(f"   - Reading guide content from '{LOCAL_GUIDE_PATH_2}'...")
+                guide_content += guide_path2.read_text(encoding='utf-8') + "\n\n"
+                guide_sources.append(LOCAL_GUIDE_PATH_2)
 
-            # Create FAISS index from combined text chunks
-            print("   - Creating embeddings and building FAISS index (this may take a moment)...")
-            local_vector_store = FAISS.from_texts(texts, embeddings)
-            print("   - Saving FAISS index...")
-            local_vector_store.save_local(FAISS_INDEX_PATH)
-            local_retriever = local_vector_store.as_retriever(search_kwargs={"k": 5})
-            print(f"✅ FAISS index built and saved successfully to '{FAISS_INDEX_PATH}'.")
+            if guide_content:
+                print(f"   - Splitting guide content into chunks...")
+                text_splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=1000, # Adjust chunk size as needed
+                    chunk_overlap=100, # Adjust overlap as needed
+                    length_function=len,
+                )
+                guide_texts = text_splitter.split_text(guide_content)
+                guide_source_str = ", ".join(guide_sources)
+                for chunk in guide_texts:
+                    all_docs.append(Document(page_content=chunk, metadata={"source": guide_source_str}))
+                print(f"   - Created {len(guide_texts)} documents from guides.")
+
+            # 3. Create FAISS index from all documents (examples + guide chunks)
+            if not all_docs:
+                 print("   - No documents found to build index.")
+                 local_retriever = None
+            else:
+                print(f"   - Creating embeddings and building FAISS index from {len(all_docs)} total documents (this may take a moment)...")
+                # Use from_documents as we now have Document objects
+                local_vector_store = FAISS.from_documents(all_docs, embeddings)
+                print("   - Saving FAISS index...")
+                local_vector_store.save_local(FAISS_INDEX_PATH)
+                local_retriever = local_vector_store.as_retriever(search_kwargs={"k": 2}) # Retrieve top 2 results
+                print(f"✅ FAISS index built and saved successfully to '{FAISS_INDEX_PATH}'.")
+
         except Exception as build_e:
             print(f"❌ Error building FAISS index: {build_e}")
             print("   Local RAG will be disabled.")
@@ -164,13 +195,8 @@ print("--- Local RAG Setup Complete ---")
 
 # --- Web RAG Setup ---
 print("\n--- Setting up Web RAG (Tavily) ---")
-if tavily_api_key:
-    print("🔑 Tavily API key found.")
-    retriever = TavilySearchResults(max_results=5) # Reduced results to 5
-    print("✅ Tavily Web Search enabled.")
-else:
-    print("⚠️ TAVILY_API_KEY not set. Web Search via Tavily is disabled.")
-    retriever = None # No retriever if key is missing
+print("⚠️ Tavily Web Search is disabled as requested.")
+retriever = None # Tavily RAG disabled as requested
 print("--- Web RAG Setup Complete ---")
 
 
@@ -283,6 +309,37 @@ code_generation_template = """You are an expert Onshape FeatureScript developer 
 **Retrieved Context (from example.txt - MUST FOLLOW EXACTLY):**
 ```
 {retrieved_context}
+#Example opFillet
+    opFillet(context, id + "fillet1", {{
+        "entities" : qCreatedBy(id + "baseBox", EntityType.EDGE),            
+        "radius" : 0.15 * inch
+    }});
+
+#Example opPattern
+        // Prepare transforms array and instance names for 8 studs
+        var transforms = [];
+        var names = [];
+        for (var i = 0; i < 4; i += 1)
+        {{
+            for (var j = 0; j < 2; j += 1)
+            {{
+                transforms = append(transforms,
+                    transform(vector(i * 8, j * 8, 0) * millimeter)
+                );
+                names = append(names, "stud_" ~ i ~ "_" ~ j);
+            }}
+        }}
+        opPattern(context, id + "stud_pattern", {{
+            "entities":                  qCreatedBy(id + "top_stud", EntityType.BODY),
+            "transforms":                transforms,
+            "instanceNames":             names,
+            "copyPropertiesAndAttributes": true
+        }});
+#Example opBoolean UNION
+        opBoolean(context, id + "boolean1", {{
+                "tools" : qUnion(qCreatedBy(id + "cuboid1", EntityType.BODY), qCreatedBy(id + "cylinder1", EntityType.BODY)),
+                "operationType" : BooleanOperationType.UNION
+        }});
 ```
 
 **Task:** Generate a complete and functional Onshape FeatureScript code snippet that defines a custom feature accurately modeling the object described in the analyzed design requirements.
@@ -492,11 +549,8 @@ requirement_analysis_chain = (
 )
 
 # Initialize Tavily Search Tool (Retriever)
-# Check if API key exists before initializing
-if tavily_api_key:
-    retriever = TavilySearchResults(max_results=10) # Get top 3 results
-else:
-    retriever = None # No retriever if key is missing
+# Tavily RAG disabled as requested
+retriever = None
 
 def select_model_by_complexity(inputs):
     """Select model based on complexity level"""
@@ -614,46 +668,12 @@ class TextToCADAgent:
                 print(f"❌ Error generating code: {e}")
                 return design_requirements, None # Return None for code if generation fails
 
-            # Step 3: Validate the generated FeatureScript code (Syntax/Structure Check)
-            try:
-                print(f"\n🔍 Performing syntax and structure validation on generated FeatureScript...")
-                validation_result = self.code_validation_chain.invoke(generated_code)
-
-                # Use validation keys specific to the FeatureScript validation template
-                if validation_result.get("valid_syntax") and validation_result.get("correct_structure") and validation_result.get("plausible_stdlib_use"):
-                    print("✅ Validation check passed: Syntax, structure, and stdlib use appear plausible.")
-                    if validation_result.get("potential_issues"):
-                        print("   Potential issues noted by validator (review recommended):")
-                        for issue in validation_result["potential_issues"]:
-                            print(f"     - {issue}")
-                    final_code = generated_code # Use original code even if minor issues noted, unless corrected code provided
-                else:
-                    print("⚠️ Validation check identified potential issues with generated FeatureScript:")
-                    if not validation_result.get("valid_syntax"): print("   - Invalid Syntax suspected.")
-                    if not validation_result.get("correct_structure"): print("   - Incorrect Structure suspected.")
-                    if not validation_result.get("plausible_stdlib_use"): print("   - Implausible Standard Library Usage suspected.")
-                    for issue in validation_result.get("potential_issues", []):
-                        print(f"   - Issue: {issue}")
-
-                    if validation_result.get("corrected_code"):
-                        print("🔧 Applying suggested corrections from validator...")
-                        final_code = validation_result["corrected_code"]
-                    else:
-                        final_code = generated_code
-                        print("⚠️ No corrections suggested by validator, using original code despite potential issues.")
-
-                # Note: Optimization suggestions might not be relevant for FeatureScript validation template
-                # if validation_result.get("optimization_suggestions"):
-                #    print("\n💡 Optimization suggestions:")
-                #    for suggestion in validation_result["optimization_suggestions"]:
-                #        print(f"   - {suggestion}")
-
-            except Exception as e:
-                print(f"⚠️ Error during code validation step: {e}")
-                print("🔄 Continuing with unvalidated code...")
-                final_code = generated_code
-
-            print("\n✅ FeatureScript generation process complete!")
+            # Step 3: Code validation disabled as requested
+            print("\n--- Code Validation Skipped as Requested ---")
+            final_code = generated_code
+            print("\n--- Generated FeatureScript Code (Validation Skipped) ---")
+            print(final_code)
+            self.save_outputs(final_code, design_requirements)
             return design_requirements, final_code
 
         except Exception as e:
@@ -734,7 +754,7 @@ if __name__ == "__main__":
     else:
         # Process example requests for FeatureScript
         example_requests = [
-            "a 5x10 lego brick",
+            "A 3x3 Lego brick stacks perfectly on top of a 5x5 Lego brick.",
         ]
 
         for i, request in enumerate(example_requests, 1):
