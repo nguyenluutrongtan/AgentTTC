@@ -103,7 +103,7 @@ try:
     if faiss_path.exists() and any(faiss_path.iterdir()):
         print(f"💾 Loading existing FAISS index from: {FAISS_INDEX_PATH}")
         local_vector_store = FAISS.load_local(FAISS_INDEX_PATH, embeddings, allow_dangerous_deserialization=True)
-        local_retriever = local_vector_store.as_retriever(search_kwargs={"k": 25}) # Retrieve top 2 local results
+        local_retriever = local_vector_store.as_retriever(search_kwargs={"k": 35}) # Retrieve top 2 local results
         print("✅ Local FAISS index loaded successfully.")
     # Check if any of the source files exist to build the index
     elif guide_path.exists() or guide_path2.exists() or examples_path.exists():
@@ -476,38 +476,147 @@ def process_validation_result(validation_result: str) -> dict:
         }
 
 def create_rag_query(design_reqs: DesignRequirements) -> str:
-    """Creates a focused RAG query for FeatureScript based on analyzed design requirements."""
-    # Prioritize example.txt patterns
-    shape_types = []
+    """Creates a focused RAG query for FeatureScript based on analyzed design requirements,
+       prioritizing relevant examples from example.txt."""
+
+    example_queries = set() # Use a set to avoid duplicates
+
+    # --- Analyze Shapes ---
+    shape_types = set()
     if design_reqs.shapes:
-        shape_types = list(set([s.shape_type for s in design_reqs.shapes]))
+        shape_types = set(s.shape_type for s in design_reqs.shapes)
+        if "box" in shape_types:
+            example_queries.add("#Simple box")
+        if "cylinder" in shape_types:
+            example_queries.add("#Simple Cylinder")
+        if "sphere" in shape_types:
+            example_queries.add("#Simple Sphere")
+        # Add mappings for other simple shapes if examples exist (e.g., cone, torus)
 
-    # Modified to focus on example.txt patterns
-    example_queries = []
-    for shape in shape_types:
-        if shape == "box":
-            example_queries.append("#Simple box")
-        elif shape == "cylinder":
-            example_queries.append("#Simple Cylinder")
-        elif shape == "sphere":
-            example_queries.append("#Simple Sphere")
+    # --- Analyze Operations ---
+    operation_types = set()
+    if design_reqs.operations:
+        operation_types = set(op.operation_type for op in design_reqs.operations)
+        if "cut" in operation_types:
+            example_queries.add("#Example opBoolean Subtraction")
+        if "fuse" in operation_types:
+            example_queries.add("#Example opBoolean UNION")
+        if "common" in operation_types:
+            # Add relevant intersection example title
+            example_queries.add("#Example: Double Cylinder Intersection") # General intersection example
+            example_queries.add("#Example: Complex Geometric Intersection")
 
-    # Add boolean operation patterns if needed
+    # --- Analyze Features ---
+    feature_types = set()
+    if design_reqs.features:
+        feature_types = set(f.feature_type for f in design_reqs.features)
+        if "fillet" in feature_types:
+            example_queries.add("#Example opFillet")
+            # Check if fillet is applied after a boolean op
+            if operation_types:
+                 example_queries.add("#Example opFillet after Boolean")
+        if "pattern" in feature_types:
+            example_queries.add("#Example opPattern")
+            example_queries.add("#example opPattern") # Explicitly add the lowercase one too
+            # Specific pattern examples
+            if "box" in shape_types or "cylinder" in shape_types: # LEGO often uses patterns
+                 example_queries.add("#Example a LEGO Brick")
+            if "sphere" in shape_types:
+                 example_queries.add("#Remixed Pattern of Spheres on Base Plate")
+        # Add mappings for chamfer, hole (often done via cut), shell, draft if examples exist
+
+    # --- Analyze Combinations and Complexity ---
+    # Heuristic: Treat 'cut' operation with 'cylinder' tool as creating a 'hole' feature
+    has_holes = False
     if design_reqs.operations:
         for op in design_reqs.operations:
-            if op.operation_type == "cut":
-                example_queries.append("#Example opBoolean Subtraction")
+             # Check if a cylinder is used as a tool in a cut operation
+             if op.operation_type == "cut" and design_reqs.shapes:
+                 tool_shape_type = next((s.shape_type for s in design_reqs.shapes if hasattr(op, 'tool_shape') and s.shape_type == op.tool_shape), None) # Simplified check
+                 # A more robust check would involve matching names if available
+                 # For now, assume any cylinder involved in a cut might be a hole
+                 if "cylinder" in shape_types: # Check if *any* cylinder exists in the design
+                     has_holes = True
+                     break # Found a potential hole operation
 
-    # If it's a complex feature, add the relevant example
-    if len(shape_types) > 1 or (design_reqs.operations and len(design_reqs.operations) > 0):
-        example_queries.append("#Example rectangular with through holes")
+    if "box" in shape_types and has_holes:
+        example_queries.add("#Example rectangular with through holes")
+        example_queries.add("#Remixed Box with Multiple Corner Through Holes and Central Hole")
+        if "fillet" in feature_types:
+            example_queries.add("#Example: Box with Multiple Hole Types and Fillets")
+            example_queries.add("#Examble Rectangular Prism with Central and Corner Through Holes and Filleted Edges")
 
-    # Join all parts with space
-    query = " ".join(example_queries)
+    if "cylinder" in shape_types and has_holes:
+         example_queries.add("#Example: Cylinder with Multiple Cuts")
+         # Check for L-shape involvement (heuristic)
+         title_lower_check = design_reqs.title.lower() if design_reqs.title else ""
+         if "l-shape" in title_lower_check or "l shape" in title_lower_check:
+             example_queries.add("#Examble Cylinder with Box and L-Shape Cuts")
+
+    if "box" in shape_types and "fillet" in feature_types:
+        example_queries.add("#Example rectangular with filleted edges")
+        if has_holes: # If box has holes AND fillets
+             example_queries.add("#Examble Rectangular Prism with Central and Corner Through Holes and Filleted Edges")
+             example_queries.add("#Example: Box with Multiple Hole Types and Fillets")
+             example_queries.add("#Remixed Box with Filleted Edges and Central Hole")
+
+    # --- Special Cases based on Title/Keywords (if available/reliable) ---
+    # This requires the requirement analysis to potentially extract keywords
+    title_lower = design_reqs.title.lower() if design_reqs.title else ""
+    if "lego" in title_lower:
+        example_queries.add("#Example a LEGO Brick")
+        example_queries.add("#Example LEGO 2x8 Brick")
+        example_queries.add("#examble LEGO Corner Plate 6x6")
+        example_queries.add("#Example LEGO 4x4 Brick with Corner Cutout")
+        example_queries.add("#Example LEGO 2x6 Brick with Central Hole")
+        example_queries.add("#Example LEGO 2x2 Brick with Filleted Edges")
+        example_queries.add("#Example LEGO 2x3 L-Shaped Plate")
+        example_queries.add("#Example: Multi-Body LEGO-style Intersection")
+    if "l-shape" in title_lower or "l shape" in title_lower or "l bracket" in title_lower:
+        example_queries.add("#Example L-shape")
+        example_queries.add("#Example L-bracket with hole per face")
+        example_queries.add("#Example: L-Shape with Box and Cylindrical Cuts")
+        example_queries.add("#Example: L-Shape and Sphere Intersection")
+        example_queries.add("#Example: L-bracket")
+
+    # --- Refine and Finalize Query ---
+    # Prioritize more specific examples if general ones are also present
+    if ("#Example rectangular with through holes" in example_queries or
+        "#Remixed Box with Multiple Corner Through Holes and Central Hole" in example_queries or
+        "#Example: Box with Multiple Hole Types and Fillets" in example_queries) and "#Simple box" in example_queries:
+        example_queries.discard("#Simple box")
+
+    if ("#Example rectangular with filleted edges" in example_queries or
+        "#Examble Rectangular Prism with Central and Corner Through Holes and Filleted Edges" in example_queries or
+        "#Remixed Box with Filleted Edges and Central Hole" in example_queries) and "#Simple box" in example_queries:
+         example_queries.discard("#Simple box") # Might already be discarded by hole check
+
+    if ("#Example: Cylinder with Multiple Cuts" in example_queries or
+        "#Examble Cylinder with Box and L-Shape Cuts" in example_queries) and "#Simple Cylinder" in example_queries:
+        example_queries.discard("#Simple Cylinder")
+
+    # Add more refinement rules as needed
+
+    # Limit the number of query terms? Maybe top 5 most relevant?
+    # For now, join all unique identified examples.
+    query_list = sorted(list(example_queries)) # Sort for consistency
+    query = " ".join(query_list)
 
     # Fallback if no specific terms identified
-    if not example_queries:
-        return "#Simple box"  # Default to simple box example
+    if not query:
+        # Default to a few common examples
+        return "#Simple box #Simple Cylinder #Example opBoolean Subtraction #Example opFillet"
+
+    # Limit query length if necessary (e.g., max characters or terms)
+    # max_len = 512 # Example limit
+    # if len(query) > max_len:
+    #     query = query[:max_len].rsplit(' ', 1)[0] # Truncate at last space
+
+    # --- DEBUGGING: Print RAG Query ---
+    print(f"\n--- DEBUG: Generated RAG Query ---")
+    print(f"'{query}'")
+    print("--- END DEBUG ---")
+    # --- END DEBUGGING ---
 
     return query
 
@@ -600,6 +709,12 @@ def combine_and_format_contexts(inputs: Dict[str, Any]) -> Dict[str, Any]:
 
     formatted_context = format_retrieved_context(combined_docs)
 
+    # --- DEBUGGING: Print Formatted RAG Context ---
+    print("\n--- DEBUG: Formatted RAG Context ---")
+    print(formatted_context)
+    print("--- END DEBUG ---")
+    # --- END DEBUGGING ---
+
     # Return a dictionary suitable for the next step (code_generation_prompt)
     return {
         "design_requirements": inputs["design_requirements"],
@@ -645,6 +760,24 @@ class TextToCADAgent:
             design_requirements = self.requirement_analysis_chain.invoke(user_text)
             if not design_requirements:
                 return None, None
+
+            # --- DEBUGGING: Print analyzed requirements ---
+            try:
+                print("\n--- DEBUG: Analyzed Requirements (JSON) ---")
+                # Use model_dump_json for Pydantic v2+ or json() for v1
+                if hasattr(design_requirements, 'model_dump_json'):
+                    print(design_requirements.model_dump_json(indent=2))
+                else:
+                    # Attempt to convert to dict then dump, handling potential errors
+                    try:
+                        print(json.dumps(design_requirements.dict(), indent=2))
+                    except AttributeError: # If no .dict() method
+                         print(json.dumps(vars(design_requirements), indent=2, default=str)) # Fallback using vars
+                print("--- END DEBUG ---")
+            except Exception as json_e:
+                print(f"--- DEBUG: Could not serialize requirements to JSON: {json_e} ---")
+                print(f"--- DEBUG: Requirements Object: {design_requirements} ---")
+            # --- END DEBUGGING ---
 
             print(f"\n✅ Requirements analysis successful:")
             print(f"   Title: {design_requirements.title}")
@@ -754,7 +887,25 @@ if __name__ == "__main__":
     else:
         # Process example requests for FeatureScript
         example_requests = [
-            "A 3x3 Lego brick stacks perfectly on top of a 5x5 Lego brick.",
+            """Mô tả chi tiết kỹ thuật:
+
+Góc L liên kết, gồm 2 mặt 90x90 mm, dày 6 mm.
+
+Mỗi mặt có 4 lỗ Ø10.5 mm, cách mép 15 mm, tâm cách nhau 65 mm.
+
+Cách vẽ CAD (tổng quát):
+
+Vẽ hình chữ nhật 90x90 mm.
+
+Đặt 4 lỗ Ø10.5 tại các vị trí theo kích thước.
+
+Extrude khối dày 6 mm.
+
+Vẽ mặt thứ hai vuông góc, lặp lại các bước trên.
+
+Kết nối hai khối tạo thành góc L.
+
+Tạo hình chiếu và phối cảnh.""",
         ]
 
         for i, request in enumerate(example_requests, 1):

@@ -877,115 +877,6 @@ export const myFeature = defineFeature(function(context is Context, id is Id, de
                 "operationType" : BooleanOperationType.UNION
         });
 
-#Example L-shape with filleted edges and 4 holes per face
-FeatureScript 2625;
-import(path : "onshape/std/geometry.fs", version : "2625.0");
-import(path : "onshape/std/common.fs", version : "2625.0");
-
-annotation { "Feature Type Name" : "L-Shaped Bracket with Filleted Edges and Four Holes per Face" }
-export const lShapedBracketWithHolesAndFillets = defineFeature(function(context is Context, id is Id, definition is map)
-    precondition
-    {
-    }
-    {
-        fCuboid(context, id + "horizontalLeg", {
-                "corner1" : vector(0, 0, 0) * millimeter,
-                "corner2" : vector(60, 30, 5) * millimeter
-        });
-        fCuboid(context, id + "verticalLeg", {
-                "corner1" : vector(60, 0, 0) * millimeter,
-                "corner2" : vector(90, 40, 5) * millimeter
-        });
-        opBoolean(context, id + "unionLegs", {
-                "tools" : qUnion(qCreatedBy(id + "horizontalLeg", EntityType.BODY), qCreatedBy(id + "verticalLeg", EntityType.BODY)),
-                "operationType" : BooleanOperationType.UNION
-        });
-        opFillet(context, id + "filletEdges", {
-                "entities" : qCreatedBy(id + "unionLegs", EntityType.EDGE),
-                "radius" : 3 * millimeter
-        });
-        fCylinder(context, id + "horHole1", {
-                "bottomCenter" : vector(10, 10, 0) * millimeter,
-                "topCenter" : vector(10, 10, 5) * millimeter,
-                "radius" : 3 * millimeter
-        });
-        opBoolean(context, id + "cutHorHole1", {
-                "tools" : qCreatedBy(id + "horHole1", EntityType.BODY),
-                "targets" : qCreatedBy(id + "horizontalLeg", EntityType.BODY),
-                "operationType" : BooleanOperationType.SUBTRACTION
-        });
-        fCylinder(context, id + "horHole2", {
-                "bottomCenter" : vector(50, 10, 0) * millimeter,
-                "topCenter" : vector(50, 10, 5) * millimeter,
-                "radius" : 3 * millimeter
-        });
-        opBoolean(context, id + "cutHorHole2", {
-                "tools" : qCreatedBy(id + "horHole2", EntityType.BODY),
-                "targets" : qCreatedBy(id + "horizontalLeg", EntityType.BODY),
-                "operationType" : BooleanOperationType.SUBTRACTION
-        });
-        fCylinder(context, id + "horHole3", {
-                "bottomCenter" : vector(50, 20, 0) * millimeter,
-                "topCenter" : vector(50, 20, 5) * millimeter,
-                "radius" : 3 * millimeter
-        });
-        opBoolean(context, id + "cutHorHole3", {
-                "tools" : qCreatedBy(id + "horHole3", EntityType.BODY),
-                "targets" : qCreatedBy(id + "horizontalLeg", EntityType.BODY),
-                "operationType" : BooleanOperationType.SUBTRACTION
-        });
-        fCylinder(context, id + "horHole4", {
-                "bottomCenter" : vector(10, 20, 0) * millimeter,
-                "topCenter" : vector(10, 20, 5) * millimeter,
-                "radius" : 3 * millimeter
-        });
-        opBoolean(context, id + "cutHorHole4", {
-                "tools" : qCreatedBy(id + "horHole4", EntityType.BODY),
-                "targets" : qCreatedBy(id + "horizontalLeg", EntityType.BODY),
-                "operationType" : BooleanOperationType.SUBTRACTION
-        });
-        fCylinder(context, id + "verHole1", {
-                "bottomCenter" : vector(70, 10, 0) * millimeter,
-                "topCenter" : vector(70, 10, 5) * millimeter,
-                "radius" : 3 * millimeter
-        });
-        opBoolean(context, id + "cutVerHole1", {
-                "tools" : qCreatedBy(id + "verHole1", EntityType.BODY),
-                "targets" : qCreatedBy(id + "horizontalLeg", EntityType.BODY),
-                "operationType" : BooleanOperationType.SUBTRACTION
-        });
-        fCylinder(context, id + "verHole2", {
-                "bottomCenter" : vector(80, 10, 0) * millimeter,
-                "topCenter" : vector(80, 10, 5) * millimeter,
-                "radius" : 3 * millimeter
-        });
-        opBoolean(context, id + "cutVerHole2", {
-                "tools" : qCreatedBy(id + "verHole2", EntityType.BODY),
-                "targets" : qCreatedBy(id + "horizontalLeg", EntityType.BODY),
-                "operationType" : BooleanOperationType.SUBTRACTION
-        });
-        fCylinder(context, id + "verHole3", {
-                "bottomCenter" : vector(80, 30, 0) * millimeter,
-                "topCenter" : vector(80, 30, 5) * millimeter,
-                "radius" : 3 * millimeter
-        });
-        opBoolean(context, id + "cutVerHole3", {
-                "tools" : qCreatedBy(id + "verHole3", EntityType.BODY),
-                "targets" : qCreatedBy(id + "horizontalLeg", EntityType.BODY),
-                "operationType" : BooleanOperationType.SUBTRACTION
-        });
-        fCylinder(context, id + "verHole4", {
-                "bottomCenter" : vector(70, 30, 0) * millimeter,
-                "topCenter" : vector(70, 30, 5) * millimeter,
-                "radius" : 3 * millimeter
-        });
-        opBoolean(context, id + "cutVerHole4", {
-                "tools" : qCreatedBy(id + "verHole4", EntityType.BODY),
-                "targets" : qCreatedBy(id + "horizontalLeg", EntityType.BODY),
-                "operationType" : BooleanOperationType.SUBTRACTION
-        });
-    });
-
 #Examble Cylinder with Box and L-Shape Cuts
 FeatureScript 2625;
 import(path : "onshape/std/geometry.fs", version : "2625.0");
@@ -1361,4 +1252,574 @@ export const lego2x3LShapedPlate = defineFeature(function(context is Context, id
             "instanceNames": names,
             "copyPropertiesAndAttributes": true
         });
+    });
+
+#Example: Double Cylinder Intersection
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Double Cylinder Intersection" }
+export const doubleCylinderIntersection = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create first cylinder
+        fCylinder(context, id + "cylinder1", {
+                "bottomCenter" : vector(0, 0, 0) * inch,
+                "topCenter" : vector(0, 0, 5) * inch,
+                "radius" : 2 * inch
+        });
+        
+        // Create second cylinder
+        fCylinder(context, id + "cylinder2", {
+                "bottomCenter" : vector(1, 0, 0) * inch,
+                "topCenter" : vector(1, 0, 5) * inch,
+                "radius" : 2 * inch
+        });
+        
+        // Perform the intersection operation
+        opBoolean(context, id + "boolean1", {
+                "tools" : qUnion(qCreatedBy(id + "cylinder1", EntityType.BODY), qCreatedBy(id + "cylinder2", EntityType.BODY)),
+                "operationType" : BooleanOperationType.INTERSECTION
+        });
+    });
+
+#Example: L-Shape and Sphere Intersection
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "L-Shape and Sphere Intersection" }
+export const lShapeAndSphereIntersection = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create L-shape sketch and extrude
+        var sketch = newSketch(context, id + "lShapeSketch", {
+            "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+        });
+        skPolyline(sketch, "polylineL", {
+                "points" : [
+                    vector(0, 0) * inch,
+                    vector(0, 10) * inch,
+                    vector(0.5, 10) * inch,
+                    vector(0.5, 0.5) * inch,
+                    vector(10, 0.5) * inch,
+                    vector(10, 0) * inch,
+                    vector(0, 0) * inch
+                ]
+        });
+        skSolve(sketch);
+        opExtrude(context, id + "lShapeExtrude", {
+                "entities" : qSketchRegion(id + "lShapeSketch"),
+                "direction" : vector(0, 0, 1),
+                "endBound" : BoundingType.BLIND,
+                "endDepth" : 8 * inch
+        });
+        
+        // Create a sphere
+        opSphere(context, id + "sphere1", {
+                "radius" : 5 * inch,
+                "center" : vector(5, 5, 4) * inch
+        });
+        
+        // Perform the intersection operation
+        opBoolean(context, id + "boolean1", {
+                "tools" : qUnion(qCreatedBy(id + "lShapeExtrude", EntityType.BODY), qCreatedBy(id + "sphere1", EntityType.BODY)),
+                "operationType" : BooleanOperationType.INTERSECTION
+        });
+    });
+
+#Example: Multi-Body LEGO-style Intersection
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "LEGO Multi-Body Intersection" }
+export const legoMultiBodyIntersection = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Base brick body - 4x4 size
+        fCuboid(context, id + "baseBox", {
+            "corner1": vector(0, 0, 0) * millimeter,
+            "corner2": vector(31.8, 31.8, 9.6) * millimeter
+        });
+        
+        // Create a dome/hemisphere for intersection
+        opSphere(context, id + "dome", {
+            "radius": 20 * millimeter,
+            "center": vector(15.9, 15.9, 9.6) * millimeter
+        });
+        
+        // Create a cylinder for additional intersection
+        fCylinder(context, id + "cylinder1", {
+            "bottomCenter": vector(15.9, 15.9, -5) * millimeter,
+            "topCenter": vector(15.9, 15.9, 15) * millimeter,
+            "radius": 12 * millimeter
+        });
+        
+        // Perform the intersection operation
+        opBoolean(context, id + "boolean1", {
+                "tools" : qUnion(qCreatedBy(id + "baseBox", EntityType.BODY), qCreatedBy(id + "cylinder1", EntityType.BODY), qCreatedBy(id + "dome", EntityType.BODY)),
+                "operationType" : BooleanOperationType.INTERSECTION
+        });
+        
+        // Add fillets to all edges
+        opFillet(context, id + "fillet1", {
+            "entities" : qCreatedBy(id + "boolean1", EntityType.EDGE),
+            "radius" : 0.5 * millimeter
+        });
+    });
+
+#Example: Complex Geometric Intersection
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Complex Geometric Intersection" }
+export const complexGeometricIntersection = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create first sphere
+        opSphere(context, id + "sphere1", {
+            "radius" : 2 * inch,
+            "center" : vector(0, 0, 0) * inch
+        });
+        
+        // Create second sphere
+        opSphere(context, id + "sphere2", {
+            "radius" : 1.5 * inch,
+            "center" : vector(2, 0, 0) * inch
+        });
+        
+        // Create a box that overlaps with both spheres
+        fCuboid(context, id + "cuboid1", {
+            "corner1" : vector(-1, -1, -1) * inch,
+            "corner2" : vector(3, 1, 1) * inch
+        });
+        
+        // Create a cylinder that overlaps with the box and spheres
+        fCylinder(context, id + "cylinder1", {
+            "bottomCenter" : vector(1, 0, -2) * inch,
+            "topCenter" : vector(1, 0, 2) * inch,
+            "radius" : 1 * inch
+        });
+        
+        // Perform the intersection operation between all bodies
+        opBoolean(context, id + "boolean1", {
+                "tools" : qUnion(qCreatedBy(id + "sphere1", EntityType.BODY), qCreatedBy(id + "sphere2", EntityType.BODY), qCreatedBy(id + "cuboid1", EntityType.BODY), qCreatedBy(id + "cylinder1", EntityType.BODY)),
+                "operationType" : BooleanOperationType.INTERSECTION
+        });
+        
+        // Add fillets to all edges of the result
+        opFillet(context, id + "fillet1", {
+            "entities" : qCreatedBy(id + "boolean1", EntityType.EDGE),
+            "radius" : 0.125 * inch
+        });
+    });
+
+#Example: Mechanical Part Intersection
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Mechanical Part Intersection" }
+export const mechanicalPartIntersection = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create base cylinder
+        fCylinder(context, id + "baseCylinder", {
+                "bottomCenter" : vector(0, 0, 0) * inch,
+                "topCenter" : vector(0, 0, 5) * inch,
+                "radius" : 2 * inch
+        });
+        
+        // Create L-shape sketch and extrude
+        var sketch = newSketch(context, id + "lShapeSketch", {
+            "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+        });
+        skPolyline(sketch, "polylineL", {
+                "points" : [
+                    vector(-1, -1) * inch,
+                    vector(-1, 3) * inch,
+                    vector(-0.5, 3) * inch,
+                    vector(-0.5, -0.5) * inch,
+                    vector(3, -0.5) * inch,
+                    vector(3, -1) * inch,
+                    vector(-1, -1) * inch
+                ]
+        });
+        skSolve(sketch);
+        opExtrude(context, id + "lShapeExtrude", {
+                "entities" : qSketchRegion(id + "lShapeSketch"),
+                "direction" : vector(0, 0, 1),
+                "endBound" : BoundingType.BLIND,
+                "endDepth" : 5 * inch
+        });
+        
+        // Create a box for intersection
+        fCuboid(context, id + "intersectionBox", {
+                "corner1" : vector(-1.5, -1.5, 1) * inch,
+                "corner2" : vector(1.5, 1.5, 4) * inch
+        });
+        
+        // Perform intersection between all bodies
+        opBoolean(context, id + "boolean1", {
+                "tools" : qUnion(qCreatedBy(id + "baseCylinder", EntityType.BODY), qCreatedBy(id + "lShapeExtrude", EntityType.BODY), qCreatedBy(id + "intersectionBox", EntityType.BODY)),
+                "operationType" : BooleanOperationType.INTERSECTION
+        });
+        
+        // Add fillets to edges of the result
+        opFillet(context, id + "filletEdges", {
+            "entities" : qCreatedBy(id + "boolean1", EntityType.EDGE),
+            "radius" : 0.25 * inch
+        });
+    });
+
+# Example: Box, Cylinder, and Sphere
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Box Cylinder Sphere" }
+export const boxCylinderSphere = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create a base box
+        fCuboid(context, id + "baseBox", {
+                "corner1" : vector(0, 0, 0) * inch,
+                "corner2" : vector(2, 2, 2) * inch
+        });
+
+        // Create a cylinder
+        fCylinder(context, id + "cylinder1", {
+                "bottomCenter" : vector(1, 1, -1) * inch,
+                "topCenter" : vector(1, 1, 3) * inch,
+                "radius" : 1 * inch
+        });
+
+        // Create a sphere
+        opSphere(context, id + "sphere1", {
+                "radius" : 1.5 * inch,
+                "center" : vector(1, 1, 1) * inch
+        });
+
+        // Perform the intersection operation between all three bodies
+        opBoolean(context, id + "boolean1", {
+                "tools" : qUnion(qCreatedBy(id + "baseBox", EntityType.BODY), qCreatedBy(id + "cylinder1", EntityType.BODY), qCreatedBy(id + "sphere1", EntityType.BODY)),
+                "operationType" : BooleanOperationType.INTERSECTION
+        });
+    });
+
+# Example: L-Shape, Box, and Sphere
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "L-Shape Box Sphere" }
+export const lShapeBoxSphere = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create L-shape sketch and extrude
+        var sketch = newSketch(context, id + "lShapeSketch", {
+            "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+        });
+        skPolyline(sketch, "polylineL", {
+                "points" : [
+                    vector(0, 0) * inch,
+                    vector(0, 5) * inch,
+                    vector(1, 5) * inch,
+                    vector(1, 1) * inch,
+                    vector(5, 1) * inch,
+                    vector(5, 0) * inch,
+                    vector(0, 0) * inch
+                ]
+        });
+        skSolve(sketch);
+        opExtrude(context, id + "lShapeExtrude", {
+                "entities" : qSketchRegion(id + "lShapeSketch"),
+                "direction" : vector(0, 0, 1),
+                "endBound" : BoundingType.BLIND,
+                "endDepth" : 3 * inch
+        });
+
+        // Create a box
+        fCuboid(context, id + "box1", {
+                "corner1" : vector(0.5, 0.5, 0.5) * inch,
+                "corner2" : vector(4.5, 4.5, 2.5) * inch
+        });
+
+        // Create a sphere
+        opSphere(context, id + "sphere1", {
+                "radius" : 2 * inch,
+                "center" : vector(2.5, 2.5, 1.5) * inch
+        });
+
+        // Perform the intersection operation between all three bodies
+        opBoolean(context, id + "boolean1", {
+                "tools" : qUnion(qCreatedBy(id + "lShapeExtrude", EntityType.BODY), qCreatedBy(id + "box1", EntityType.BODY), qCreatedBy(id + "sphere1", EntityType.BODY)),
+                "operationType" : BooleanOperationType.INTERSECTION
+        });
+    });
+
+# Example: Patterned Cylinders with a Box
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "Patterned Cylinders Box" }
+export const patternedCylindersBox = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create a base box
+        fCuboid(context, id + "baseBox", {
+            "corner1" : vector(0, 0, 0) * millimeter,
+            "corner2" : vector(50, 50, 50) * millimeter
+        });
+
+        // Create first cylinder for pattern
+        fCylinder(context, id + "cylinder1", {
+            "bottomCenter" : vector(10, 10, 0) * millimeter,
+            "topCenter" : vector(10, 10, 50) * millimeter,
+            "radius" : 5 * millimeter
+        });
+
+        // Pattern cylinders
+        var transforms = [];
+        var names = [];
+        for (var i = 0; i < 3; i += 1)
+        {
+            for (var j = 0; j < 3; j += 1)
+            {
+                transforms = append(transforms,
+                    transform(vector(i * 15, j * 15, 0) * millimeter)
+                );
+                names = append(names, "cylinder_" ~ i ~ "_" ~ j);
+            }
+        }
+
+        opPattern(context, id + "cylinderPattern", {
+            "entities" : qCreatedBy(id + "cylinder1", EntityType.BODY),
+            "transforms" : transforms,
+            "instanceNames" : names,
+            "copyPropertiesAndAttributes" : true
+        });
+
+        // Perform intersection between the base box and all patterned cylinders
+        // Need to select all bodies created by the pattern and the base box
+        opBoolean(context, id + "boolean1", {
+                "tools" : qUnion(qCreatedBy(id + "baseBox", EntityType.BODY), qCreatedBy(id + "cylinderPattern", EntityType.BODY)),
+                "operationType" : BooleanOperationType.INTERSECTION
+        });
+    });
+
+# Example: LEGO 2x4 Brick with a Sphere and Cylinder
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "LEGO Brick Sphere Cylinder" }
+export const legoBrickSphereCylinder = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create the base body of a LEGO 2x4 brick
+        fCuboid(context, id + "base_box", {
+            "corner1": vector(0, 0, 0) * millimeter,
+            "corner2": vector(31.8, 15.8, 9.6) * millimeter   // LEGO 2x4 dimensions
+        });
+
+        // Create a sphere
+        opSphere(context, id + "sphere1", {
+                "radius" : 10 * millimeter,
+                "center" : vector(15.9, 7.9, 9.6) * millimeter // Center on top face
+        });
+
+        // Create a cylinder
+        fCylinder(context, id + "cylinder1", {
+                "bottomCenter" : vector(15.9, 7.9, -5) * millimeter,
+                "topCenter" : vector(15.9, 7.9, 15) * millimeter,
+                "radius" : 5 * millimeter
+        });
+
+        // Perform the intersection operation between the brick body, sphere, and cylinder
+        opBoolean(context, id + "boolean1", {
+                "tools" : qUnion(qCreatedBy(id + "base_box", EntityType.BODY), qCreatedBy(id + "sphere1", EntityType.BODY), qCreatedBy(id + "cylinder1", EntityType.BODY)),
+                "operationType" : BooleanOperationType.INTERSECTION
+        });
+    });
+
+# Example: L-bracket
+FeatureScript 2625;
+import(path : "onshape/std/geometry.fs", version : "2625.0");
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "L-bracket" }
+export const lShapes = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+    }
+    {
+        // Create first L-shape
+        var sketch1 = newSketch(context, id + "lShapeSketch1", {
+            "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+        });
+        skPolyline(sketch1, "polylineL1", {
+                "points" : [
+                    vector(0, 0) * inch,
+                    vector(0, 5) * inch,
+                    vector(1, 5) * inch,
+                    vector(1, 1) * inch,
+                    vector(5, 1) * inch,
+                    vector(5, 0) * inch,
+                    vector(0, 0) * inch
+                ]
+        });
+        skSolve(sketch1);
+        opExtrude(context, id + "lShapeExtrude1", {
+                "entities" : qSketchRegion(id + "lShapeSketch1"),
+                "direction" : vector(0, 0, 1),
+                "endBound" : BoundingType.BLIND,
+                "endDepth" : 3 * inch
+        });
+
+        // Create second L-shape, rotated and positioned to intersect
+        var sketch2 = newSketch(context, id + "lShapeSketch2", {
+            "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+        });
+        skPolyline(sketch2, "polylineL2", {
+                "points" : [
+                    vector(0, 0) * inch,
+                    vector(0, 5) * inch,
+                    vector(1, 5) * inch,
+                    vector(1, 1) * inch,
+                    vector(5, 1) * inch,
+                    vector(5, 0) * inch,
+                    vector(0, 0) * inch
+                ]
+        });
+        skSolve(sketch2);
+         opExtrude(context, id + "lShapeExtrude2", {
+                "entities" : qSketchRegion(id + "lShapeSketch2"),
+                "direction" : vector(0, 0, 1),
+                "endBound" : BoundingType.BLIND,
+                "endDepth" : 3 * inch,
+                "transform" : transform(vector(5, 5, 0) * inch) * rotateZ(180 * degree) // Move and rotate
+        });
+
+
+        // Perform the intersection operation between the two L-shapes
+        opBoolean(context, id + "boolean1", {
+                "tools" : qUnion(qCreatedBy(id + "lShapeExtrude1", EntityType.BODY), qCreatedBy(id + "lShapeExtrude2", EntityType.BODY)),
+                "operationType" : BooleanOperationType.INTERSECTION
+        });
+    });
+
+# Example: L-bracket with hole per face
+FeatureScript 2625;
+import(path : "onshape/std/common.fs", version : "2625.0");
+
+annotation { "Feature Type Name" : "L-shape with hole per face", "Feature Type Description" : "" }
+export const myFeature = defineFeature(function(context is Context, id is Id, definition is map)
+    precondition
+    {
+        // Define the parameters of the feature type
+    }
+    {
+        // SKETCH 1:
+        var sketch1 = newSketch(context, id + "sketch", {
+            "sketchPlane" : qCreatedBy(makeId("Top"), EntityType.FACE)
+        });
+
+        // Draw L-shape
+        skPolyline(sketch1, "polyline1", {
+                "points" : [
+                    vector(0, 0) * millimeter,
+                    vector(0, 90) * millimeter,
+                    vector(6, 90) * millimeter,
+                    vector(6, 6) * millimeter,
+                    vector(90, 6) * millimeter,
+                    vector(90, 0) * millimeter,
+                    vector(0, 0) * millimeter,
+                ]
+        });
+        skSolve(sketch1);
+        
+        // Extrude
+        opExtrude(context, id + "extrude1", {
+                "entities" : qSketchRegion(id + "sketch"),
+                "direction" : vector(0,0,1),
+                "endBound" : BoundingType.BLIND,
+                "endDepth" : 80 * millimeter
+        });
+        
+        
+        // Fillet
+        const allEdges = evaluateQuery(context, qCreatedBy(id + "extrude1", EntityType.EDGE));
+        var edgesToFillet = [];
+        edgesToFillet = append(edgesToFillet, allEdges[0]);
+        edgesToFillet = append(edgesToFillet, allEdges[3]);
+        opFillet(context, id + "fillet1", {
+            "entities" : qUnion(edgesToFillet),
+            "radius" : 10 * millimeter
+        });
+        
+        
+        // SKETCH 2: 
+        var topFaceQuery = qNthElement(qCreatedBy(id + "extrude1", EntityType.FACE), 2);
+        var sketch2 = newSketch(context, id + "sketch2", {
+            "sketchPlane" : topFaceQuery
+        });
+        
+        skCircle(sketch2, "circle1", {
+                "center" : vector(-25, 15) * millimeter,
+                "radius" : 5.25 * millimeter
+        });
+        
+        skCircle(sketch2, "circle2", {
+                "center" : vector(-25, 65) * millimeter,
+                "radius" : 5.25 * millimeter
+        });
+        
+        skCircle(sketch2, "circle3", {
+                "center" : vector(-75, 15) * millimeter,
+                "radius" : 5.25 * millimeter
+        });
+        
+        skCircle(sketch2, "circle4", {
+                "center" : vector(-75, 65) * millimeter,
+                "radius" : 5.25 * millimeter
+        });
+        
+        skSolve(sketch2);
+        
+        opExtrude(context, id + "extrude2", {
+                "entities" : qSketchRegion(id + "sketch2"),
+                "direction" : vector(1,0,0),
+                "endBound" : BoundingType.BLIND,
+                "endDepth" : 10 * millimeter
+        });
+        
+        opBoolean(context, id + "boolean1", {
+                "tools" : qCreatedBy(id + "extrude2", EntityType.BODY),
+                "targets": qCreatedBy(id + "extrude1", EntityType.BODY),
+                "operationType" : BooleanOperationType.SUBTRACTION
+        });
+        
     });
